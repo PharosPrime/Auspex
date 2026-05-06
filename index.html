@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
+    <!-- Required for static GitHub Pages EPUB loading -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
@@ -267,6 +268,93 @@
             margin-bottom: 20px;
             opacity: 0.92;
             text-align: justify;
+        }
+
+        .cover-panel {
+            position: absolute;
+            inset: 0;
+            z-index: 49;
+            display: grid;
+            place-items: center;
+            padding: clamp(22px, 7vw, 34px);
+            background:
+                radial-gradient(circle at 50% 44%, rgba(255, 178, 58, 0.15), transparent 34%),
+                radial-gradient(circle at 50% 44%, rgba(255, 213, 138, 0.08), transparent 58%),
+                rgba(7, 4, 1, 0.96);
+            opacity: 1;
+            visibility: visible;
+            pointer-events: none;
+            transition: opacity 260ms ease, visibility 260ms ease;
+        }
+
+        .cover-panel.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .cover-frame {
+            position: relative;
+            display: grid;
+            place-items: center;
+            width: min(82%, 280px);
+            max-height: 78%;
+            padding: 10px;
+            border: 1px solid rgba(255, 178, 58, 0.28);
+            background:
+                linear-gradient(135deg, rgba(255, 213, 138, 0.08), transparent 34%),
+                rgba(0, 0, 0, 0.58);
+            box-shadow:
+                0 0 0 1px rgba(0, 0, 0, 0.95),
+                0 0 30px rgba(255, 178, 58, 0.15),
+                0 24px 56px rgba(0, 0, 0, 0.82),
+                inset 0 0 24px rgba(0, 0, 0, 0.78);
+        }
+
+        .cover-frame::before {
+            content: "";
+            position: absolute;
+            inset: -9px;
+            border: 1px solid rgba(255, 178, 58, 0.12);
+            pointer-events: none;
+        }
+
+        .cover-frame::after {
+            content: "COVER";
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 213, 138, 0.72);
+            font-size: 9px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(255, 178, 58, 0.52);
+        }
+
+        .cover-panel img {
+            display: block;
+            max-width: 100%;
+            max-height: 58dvh;
+            object-fit: contain;
+            filter: sepia(0.32) saturate(1.12) contrast(1.06);
+            box-shadow:
+                0 0 18px rgba(255, 178, 58, 0.1),
+                0 14px 32px rgba(0, 0, 0, 0.72);
+        }
+
+        .cover-caption {
+            position: absolute;
+            bottom: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 44px);
+            text-align: center;
+            color: var(--amber-hot);
+            font-size: 10px;
+            line-height: 1.5;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(255, 178, 58, 0.55);
         }
 
         .gesture-layer {
@@ -543,6 +631,10 @@
             .placeholder-content {
                 padding: 20px 18px;
             }
+
+            .cover-panel img {
+                max-height: 48dvh;
+            }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -594,6 +686,13 @@
                     </p>
                 </article>
 
+                <div class="cover-panel hidden" id="coverPanel" aria-hidden="true">
+                    <div class="cover-frame">
+                        <img id="coverImage" alt="EPUB cover" />
+                    </div>
+                    <div class="cover-caption" id="coverCaption">Codex Cover Acquired</div>
+                </div>
+
                 <div class="smudge-overlay"></div>
                 <div class="scanline-anim"></div>
                 <div class="page-flash"></div>
@@ -632,10 +731,15 @@
         const locationStatus = document.getElementById('locationStatus');
         const pageStatus = document.getElementById('pageStatus');
         const slotText = document.getElementById('slotText');
+        const coverPanel = document.getElementById('coverPanel');
+        const coverImage = document.getElementById('coverImage');
+        const coverCaption = document.getElementById('coverCaption');
 
         let book = null;
         let rendition = null;
         let currentBookKey = null;
+        let currentCoverUrl = null;
+        let coverTimer = null;
         let startX = 0;
         let startY = 0;
         let startTime = 0;
@@ -681,7 +785,22 @@
             toast.classList.add('visible');
         }
 
+        function hideCover() {
+            window.clearTimeout(coverTimer);
+            coverPanel.classList.add('hidden');
+        }
+
+        function cleanupCoverUrl() {
+            if (currentCoverUrl) {
+                URL.revokeObjectURL(currentCoverUrl);
+                currentCoverUrl = null;
+            }
+
+            coverImage.removeAttribute('src');
+        }
+
         function pulseTurn() {
+            hideCover();
             screen.classList.remove('turning');
             void screen.offsetWidth;
             screen.classList.add('turning');
@@ -702,6 +821,155 @@
 
         function getBookKey(file) {
             return `auspex-bookmark::${file.name}::${file.size}::${file.lastModified}`;
+        }
+
+        function xmlOne(xmlDoc, localName) {
+            return xmlDoc.getElementsByTagNameNS('*', localName)[0] || xmlDoc.getElementsByTagName(localName)[0] || null;
+        }
+
+        function xmlAll(xmlDoc, localName) {
+            return Array.from(xmlDoc.getElementsByTagNameNS('*', localName)).length
+                ? Array.from(xmlDoc.getElementsByTagNameNS('*', localName))
+                : Array.from(xmlDoc.getElementsByTagName(localName));
+        }
+
+        function safeDecode(value) {
+            try {
+                return decodeURIComponent(value);
+            } catch (error) {
+                return value;
+            }
+        }
+
+        function normalizeZipPath(path) {
+            return safeDecode(path)
+                .replace(/\\/g, '/')
+                .replace(/^\/+/, '')
+                .replace(/\/{2,}/g, '/');
+        }
+
+        function resolvePath(basePath, relativePath) {
+            const baseParts = normalizeZipPath(basePath).split('/').slice(0, -1);
+            const relativeParts = normalizeZipPath(relativePath).split('/');
+
+            for (const part of relativeParts) {
+                if (!part || part === '.') continue;
+                if (part === '..') {
+                    baseParts.pop();
+                } else {
+                    baseParts.push(part);
+                }
+            }
+
+            return baseParts.join('/');
+        }
+
+        function findZipFile(zip, path) {
+            const wanted = normalizeZipPath(path);
+            const direct = zip.file(wanted);
+
+            if (direct) return direct;
+
+            return Object.values(zip.files).find(file => {
+                if (!file || file.dir) return false;
+                return normalizeZipPath(file.name) === wanted;
+            }) || null;
+        }
+
+        async function extractCoverUrlFromEpubBuffer(buffer) {
+            if (!window.JSZip) return null;
+
+            const zip = await JSZip.loadAsync(buffer);
+            const parser = new DOMParser();
+
+            const containerFile = findZipFile(zip, 'META-INF/container.xml');
+            if (!containerFile) return null;
+
+            const containerText = await containerFile.async('text');
+            const containerXml = parser.parseFromString(containerText, 'application/xml');
+            const rootfile = xmlOne(containerXml, 'rootfile');
+            const opfPath = rootfile ? rootfile.getAttribute('full-path') : null;
+
+            if (!opfPath) return null;
+
+            const opfFile = findZipFile(zip, opfPath);
+            if (!opfFile) return null;
+
+            const opfText = await opfFile.async('text');
+            const opfXml = parser.parseFromString(opfText, 'application/xml');
+            const manifestItems = xmlAll(opfXml, 'item');
+            const metadataItems = xmlAll(opfXml, 'meta');
+
+            let coverHref = null;
+
+            const epub3Cover = manifestItems.find(item => {
+                const properties = item.getAttribute('properties') || '';
+                return properties.split(/\s+/).includes('cover-image');
+            });
+
+            if (epub3Cover) {
+                coverHref = epub3Cover.getAttribute('href');
+            }
+
+            if (!coverHref) {
+                const coverMeta = metadataItems.find(meta => {
+                    return (meta.getAttribute('name') || '').toLowerCase() === 'cover';
+                });
+
+                const coverId = coverMeta ? coverMeta.getAttribute('content') : null;
+
+                if (coverId) {
+                    const coverItem = manifestItems.find(item => item.getAttribute('id') === coverId);
+                    if (coverItem) coverHref = coverItem.getAttribute('href');
+                }
+            }
+
+            if (!coverHref) {
+                const likelyImage = manifestItems.find(item => {
+                    const mediaType = item.getAttribute('media-type') || '';
+                    const href = item.getAttribute('href') || '';
+                    return mediaType.startsWith('image/') && /cover|front|title/i.test(href);
+                });
+
+                if (likelyImage) coverHref = likelyImage.getAttribute('href');
+            }
+
+            if (!coverHref) return null;
+
+            const fullCoverPath = resolvePath(opfPath, coverHref);
+            const coverFile = findZipFile(zip, fullCoverPath);
+
+            if (!coverFile) return null;
+
+            const blob = await coverFile.async('blob');
+            return URL.createObjectURL(blob);
+        }
+
+        async function showCoverFromBuffer(buffer, title) {
+            try {
+                cleanupCoverUrl();
+
+                const coverUrl = await extractCoverUrlFromEpubBuffer(buffer);
+
+                if (!coverUrl) {
+                    coverPanel.classList.add('hidden');
+                    showToast('Codex mounted. No declared cover found.');
+                    return;
+                }
+
+                currentCoverUrl = coverUrl;
+                coverImage.src = coverUrl;
+                coverCaption.textContent = `Cover Acquired // ${title}`;
+                coverPanel.classList.remove('hidden');
+
+                window.clearTimeout(coverTimer);
+                coverTimer = window.setTimeout(() => {
+                    coverPanel.classList.add('hidden');
+                }, 2800);
+            } catch (error) {
+                console.warn('Cover extraction failed:', error);
+                coverPanel.classList.add('hidden');
+            }
         }
 
         function updateLocation(location) {
@@ -808,9 +1076,16 @@
                 return;
             }
 
+            if (!window.JSZip) {
+                showToast('ZIP engine failed to load. Cover extraction unavailable.');
+                return;
+            }
+
             const buffer = await file.arrayBuffer();
             currentBookKey = getBookKey(file);
             locationsReady = false;
+
+            hideCover();
 
             if (rendition) {
                 rendition.destroy();
@@ -863,8 +1138,10 @@
             await rendition.display(target);
 
             linkStatus.textContent = 'Link: Established // Sanctified';
-            slotText.textContent = `Dataslate Mounted`;
+            slotText.textContent = 'Dataslate Mounted';
             showToast(savedBookmark ? `Bookmark Restored: ${title}` : `Codex Mounted: ${title}`);
+
+            await showCoverFromBuffer(buffer, title);
 
             book.ready.then(() => book.locations.generate(900)).then(() => {
                 locationsReady = true;
@@ -889,6 +1166,7 @@
                 await loadEpub(file);
             } catch (error) {
                 console.error(error);
+                hideCover();
                 placeholder.classList.remove('hidden');
                 linkStatus.textContent = 'Link: Failed // Dataslate Corrupt';
                 pageStatus.textContent = 'LOAD ERROR';
@@ -918,6 +1196,10 @@
             resizeTimer = setTimeout(() => {
                 if (rendition) rendition.resize();
             }, 180);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            cleanupCoverUrl();
         });
 
         function occasionalAmbientFlicker() {
