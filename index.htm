@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Auspex Codex EPUB Reader</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+
+    <style>
+        :root {
+            --iron: #1a1c1e;
+            --amber: #ffb23a;
+            --amber-hot: #ffd58a;
+            --amber-dim: rgba(255, 178, 58, 0.16);
+            --tallow: #f1e7c0;
+            --rust: #3d2b1f;
+            --frame-border: #2a2d31;
+            --black-glass: #070401;
+            --slot-red: #3d1f1f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 12%, rgba(255, 178, 58, 0.08), transparent 42%),
+                radial-gradient(circle at 50% 100%, rgba(0, 0, 0, 0.9), #050505 70%);
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--amber);
+        }
+
+        body {
+            display: grid;
+            place-items: center;
+            min-height: 100dvh;
+            padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+            cursor: crosshair;
+            user-select: none;
+        }
+
+        .svg-filters {
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+
+        .auspex-unit {
+            position: relative;
+            width: min(94vw, 430px);
+            height: min(96dvh, 860px);
+            min-height: 600px;
+            background:
+                linear-gradient(135deg, rgba(255, 255, 255, 0.055), transparent 22%),
+                linear-gradient(135deg, var(--iron) 0%, #0c0d0e 100%);
+            border: 4px solid var(--frame-border);
+            border-radius: 18px;
+            padding: 18px 16px 16px;
+            box-shadow:
+                0 0 0 2px #000,
+                0 38px 90px -28px rgba(0, 0, 0, 0.92),
+                inset 0 0 46px rgba(0, 0, 0, 0.95),
+                inset 0 1px 0 rgba(255, 255, 255, 0.07);
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            gap: 14px;
+        }
+
+        .auspex-unit::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 14% 11%, rgba(241, 231, 192, 0.055), transparent 18%),
+                radial-gradient(circle at 86% 77%, rgba(241, 231, 192, 0.04), transparent 24%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.55'/%3E%3C/svg%3E");
+            opacity: 0.07;
+            pointer-events: none;
+        }
+
+        .auspex-unit::after {
+            content: "";
+            position: absolute;
+            inset: 13px;
+            border: 1px solid rgba(255, 178, 58, 0.06);
+            border-radius: 12px;
+            pointer-events: none;
+        }
+
+        .rivet {
+            width: 9px;
+            height: 9px;
+            position: absolute;
+            z-index: 8;
+            border-radius: 50%;
+            background: #101010;
+            box-shadow:
+                inset 1px 1px 2px rgba(255, 255, 255, 0.14),
+                1px 1px 3px rgba(0, 0, 0, 0.95);
+        }
+
+        .rivet.tl { top: 10px; left: 10px; }
+        .rivet.tr { top: 10px; right: 10px; }
+        .rivet.bl { bottom: 10px; left: 10px; }
+        .rivet.br { bottom: 10px; right: 10px; }
+
+        .rail {
+            position: absolute;
+            top: 54px;
+            bottom: 108px;
+            width: 7px;
+            border-radius: 999px;
+            background:
+                linear-gradient(to bottom, transparent, rgba(255, 178, 58, 0.12), transparent),
+                linear-gradient(90deg, #0a0a0a, #2c2c2c, #080808);
+            opacity: 0.78;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9);
+            pointer-events: none;
+        }
+
+        .rail.left { left: 8px; }
+        .rail.right { right: 8px; }
+
+        .phosphor-screen {
+            position: relative;
+            z-index: 2;
+            min-height: 0;
+            background: var(--black-glass);
+            border-radius: 10px;
+            border: 12px solid #111;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            box-shadow:
+                inset 0 0 70px rgba(0, 0, 0, 1),
+                0 0 0 1px rgba(255, 178, 58, 0.11),
+                0 12px 28px rgba(0, 0, 0, 0.55);
+            filter: url(#tallow-smudge);
+            transform-origin: center;
+            touch-action: none;
+        }
+
+        .phosphor-screen::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 40;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(255, 178, 58, 0.03) 50%, rgba(0, 0, 0, 0.28) 50%),
+                linear-gradient(90deg, rgba(255, 120, 0, 0.07), rgba(255, 205, 90, 0.025), rgba(255, 80, 0, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            mix-blend-mode: screen;
+        }
+
+        .phosphor-screen::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 41;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 50% 50%, transparent 46%, rgba(0, 0, 0, 0.42) 100%),
+                linear-gradient(to bottom, rgba(255, 213, 138, 0.05), transparent 12%, transparent 82%, rgba(255, 178, 58, 0.035));
+        }
+
+        .reader-header,
+        .reader-footer {
+            position: relative;
+            z-index: 45;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            color: var(--amber);
+            background: rgba(2, 8, 4, 0.88);
+            backdrop-filter: blur(3px);
+        }
+
+        .reader-header {
+            min-height: 52px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--amber-dim);
+        }
+
+        .reader-footer {
+            min-height: 42px;
+            padding: 10px 16px;
+            border-top: 1px solid var(--amber-dim);
+            font-size: 9px;
+            letter-spacing: 0.05em;
+            opacity: 0.78;
+        }
+
+        .status-badge {
+            font-size: clamp(8px, 2.5vw, 10px);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            line-height: 1.35;
+            text-shadow: 0 0 8px rgba(255, 178, 58, 0.55);
+            animation: flicker 4s infinite;
+        }
+
+        .status-badge:last-child,
+        .reader-footer span:last-child {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .screen-body {
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        #viewer {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            overflow: hidden;
+        }
+
+        .placeholder-content {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            padding: clamp(24px, 7vw, 38px) clamp(18px, 6vw, 34px);
+            color: var(--amber);
+            overflow: hidden;
+            mask-image: linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+            pointer-events: none;
+        }
+
+        .placeholder-content.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(26px, 9vw, 38px);
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            line-height: 0.9;
+            text-shadow: 0 0 12px rgba(255, 178, 58, 0.7);
+        }
+
+        p {
+            font-size: clamp(12px, 3.5vw, 14px);
+            line-height: 1.85;
+            margin-bottom: 20px;
+            opacity: 0.92;
+            text-align: justify;
+        }
+
+        .gesture-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        .smudge-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 42;
+            background:
+                radial-gradient(circle at 28% 18%, rgba(241, 231, 192, 0.08) 0%, transparent 38%),
+                radial-gradient(circle at 70% 82%, rgba(241, 231, 192, 0.052) 0%, transparent 30%);
+            mix-blend-mode: overlay;
+            pointer-events: none;
+        }
+
+        .scanline-anim {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 24px;
+            top: -120px;
+            z-index: 43;
+            background: linear-gradient(to bottom, transparent, rgba(255, 178, 58, 0.12), transparent);
+            animation: scan 8s linear infinite;
+            pointer-events: none;
+        }
+
+        .page-flash {
+            position: absolute;
+            inset: 0;
+            z-index: 44;
+            pointer-events: none;
+            opacity: 0;
+            background:
+                radial-gradient(circle at 42% 48%, rgba(255, 213, 138, 0.08), transparent 32%),
+                repeating-radial-gradient(circle at 50% 50%, rgba(255, 178, 58, 0.08) 0 1px, transparent 1px 4px),
+                repeating-linear-gradient(0deg, transparent 0 5px, rgba(255, 213, 138, 0.035) 6px 7px);
+            mix-blend-mode: screen;
+        }
+
+        .phosphor-screen.turning .page-flash {
+            animation: pageFlash 220ms ease-out;
+        }
+
+        .phosphor-screen.turning {
+            animation: softFlicker 140ms ease-out;
+            transform: none !important;
+        }
+
+        .phosphor-screen.ambient-flicker {
+            animation: ambientFlicker 260ms ease-out;
+            transform: none !important;
+        }
+
+        .phosphor-screen.bookmarked {
+            animation: bookmarkPulse 580ms ease-out;
+        }
+
+        .toast {
+            position: absolute;
+            left: 50%;
+            bottom: 72px;
+            z-index: 80;
+            width: calc(100% - 44px);
+            transform: translateX(-50%) translateY(12px);
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 178, 58, 0.28);
+            border-left: 3px solid var(--amber);
+            background: rgba(7, 4, 1, 0.92);
+            color: var(--amber-hot);
+            font-size: 10px;
+            line-height: 1.45;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 0 24px rgba(255, 178, 58, 0.1);
+        }
+
+        .toast.visible {
+            animation: toastRise 2.1s ease forwards;
+        }
+
+        .dataslate-dock {
+            position: relative;
+            z-index: 3;
+            display: grid;
+            gap: 8px;
+            padding: 0 12px 2px;
+        }
+
+        .slot-label {
+            font-size: 9px;
+            color: rgba(241, 231, 192, 0.58);
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            text-align: center;
+        }
+
+        .dataslate-slot {
+            position: relative;
+            height: 54px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 178, 58, 0.16);
+            border-bottom: 4px solid #000;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.12)),
+                linear-gradient(90deg, #120d08, #070707 18%, #24211b 50%, #070707 82%, #120d08);
+            color: rgba(255, 213, 138, 0.72);
+            display: grid;
+            place-items: center;
+            text-align: center;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            overflow: hidden;
+            box-shadow:
+                inset 0 9px 18px rgba(0, 0, 0, 0.78),
+                0 0 18px rgba(255, 178, 58, 0.04);
+        }
+
+        .dataslate-slot::before {
+            content: "";
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            top: 18px;
+            height: 8px;
+            border-radius: 999px;
+            background: #000;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                0 0 16px rgba(255, 178, 58, 0.1);
+        }
+
+        .dataslate-slot::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(100deg, transparent 20%, rgba(255, 178, 58, 0.13), transparent 42%);
+            transform: translateX(-100%);
+            animation: slotSweep 4.6s infinite;
+            pointer-events: none;
+        }
+
+        .dataslate-slot span {
+            position: relative;
+            z-index: 2;
+            top: 11px;
+            text-shadow: 0 0 8px rgba(255, 178, 58, 0.55);
+        }
+
+        .dataslate-slot:active {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+            color: var(--amber-hot);
+            box-shadow:
+                inset 0 9px 18px rgba(0, 0, 0, 0.78),
+                0 0 22px rgba(255, 178, 58, 0.16);
+        }
+
+        #epubInput {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .microtext {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            color: rgba(255, 178, 58, 0.35);
+            font-size: 8px;
+            letter-spacing: 0.11em;
+            text-transform: uppercase;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 1; }
+            5% { opacity: 0.82; }
+            10% { opacity: 1; }
+            15% { opacity: 0.91; }
+            25% { opacity: 1; }
+            80% { opacity: 1; }
+            82% { opacity: 0.52; }
+            85% { opacity: 1; }
+            100% { opacity: 0.96; }
+        }
+
+        @keyframes scan {
+            0% { top: -120px; }
+            100% { top: 100%; }
+        }
+
+        @keyframes boot {
+            from { opacity: 0.74; filter: brightness(1.55) contrast(1.08) url(#tallow-smudge); }
+            45% { opacity: 1; filter: brightness(1.22) contrast(1.05) url(#tallow-smudge); }
+            to { opacity: 1; filter: brightness(1) contrast(1) url(#tallow-smudge); }
+        }
+
+        @keyframes softFlicker {
+            0% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+            50% { filter: brightness(1.035) contrast(1.01) url(#tallow-smudge); }
+            100% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+        }
+
+        @keyframes ambientFlicker {
+            0% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+            18% { filter: brightness(1.18) contrast(1.04) url(#tallow-smudge); }
+            42% { filter: brightness(0.94) contrast(1.02) url(#tallow-smudge); }
+            66% { filter: brightness(1.11) contrast(1.025) url(#tallow-smudge); }
+            100% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+        }
+
+        @keyframes pageFlash {
+            0% { opacity: 0; }
+            42% { opacity: 0.16; }
+            100% { opacity: 0; }
+        }
+
+        @keyframes bookmarkPulse {
+            0% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.11); }
+            35% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.48), 0 0 34px rgba(255, 178, 58, 0.24); }
+            100% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.11); }
+        }
+
+        @keyframes toastRise {
+            0% { opacity: 0; transform: translateX(-50%) translateY(12px); }
+            14% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            82% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+        }
+
+        @keyframes slotSweep {
+            0% { transform: translateX(-120%); }
+            42% { transform: translateX(120%); }
+            100% { transform: translateX(120%); }
+        }
+
+        .boot-seq {
+            animation: boot 0.72s steps(5) forwards;
+        }
+
+        @media (max-height: 680px) {
+            .auspex-unit {
+                min-height: 0;
+                height: 96dvh;
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .reader-header {
+                min-height: 44px;
+                padding: 10px 12px;
+            }
+
+            .reader-footer {
+                min-height: 36px;
+                padding: 8px 12px;
+            }
+
+            .dataslate-slot {
+                height: 46px;
+            }
+
+            .placeholder-content {
+                padding: 20px 18px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <svg class="svg-filters" aria-hidden="true">
+        <filter id="tallow-smudge">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" />
+        </filter>
+    </svg>
+
+    <main class="auspex-unit" aria-label="Auspex Codex EPUB Reader">
+        <div class="rivet tl"></div>
+        <div class="rivet tr"></div>
+        <div class="rivet bl"></div>
+        <div class="rivet br"></div>
+        <div class="rail left"></div>
+        <div class="rail right"></div>
+
+        <section class="phosphor-screen boot-seq" id="screen" aria-label="Reader screen">
+            <header class="reader-header">
+                <div class="status-badge" id="linkStatus">Link: Dormant // Awaiting Dataslate</div>
+                <div class="status-badge" id="lumenStatus">Lumen: 88%</div>
+            </header>
+
+            <div class="screen-body" id="screenBody">
+                <div id="viewer" aria-label="EPUB page viewport"></div>
+
+                <article class="placeholder-content" id="placeholderContent">
+                    <h1>The Litany of Stored Pages</h1>
+                    <p>
+                        Insert a sanctioned EPUB dataslate through the lower intake. The reader will awaken, bind the codex, and render the text in amber phosphor across the sanctified glass.
+                    </p>
+                    <p>
+                        Swipe left or right across the screen to turn pages. Swipe down to burn a bookmark sigil into local memory. Tap the left or right half of the glass for quiet page movement, because apparently even ancient machine spirits appreciate ergonomics.
+                    </p>
+                    <p>
+                        Amber scanlines remain active across the whole display. Page turns will give a soft phosphor blink, with only an occasional old-screen flicker. No migraine demon gets a lease on this chassis.
+                    </p>
+                </article>
+
+                <div class="smudge-overlay"></div>
+                <div class="scanline-anim"></div>
+                <div class="page-flash"></div>
+                <div class="gesture-layer" id="gestureLayer" aria-hidden="true"></div>
+                <div class="toast" id="toast">Machine Spirit Acknowledged</div>
+            </div>
+
+            <footer class="reader-footer">
+                <span id="locationStatus">LOC: 00.000.00</span>
+                <span id="pageStatus">NO CODEX</span>
+            </footer>
+        </section>
+
+        <section class="dataslate-dock" aria-label="Dataslate dock">
+            <div class="slot-label">Lower Dataslate Intake</div>
+            <label class="dataslate-slot" for="epubInput" aria-label="Load EPUB dataslate">
+                <span id="slotText">Load Dataslate // EPUB</span>
+            </label>
+            <input id="epubInput" type="file" accept=".epub,application/epub+zip" />
+            <div class="microtext">
+                <span>Swipe ↓ Bookmark</span>
+                <span>Swipe ← / → Canto</span>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const screen = document.getElementById('screen');
+        const gestureLayer = document.getElementById('gestureLayer');
+        const input = document.getElementById('epubInput');
+        const viewer = document.getElementById('viewer');
+        const placeholder = document.getElementById('placeholderContent');
+        const toast = document.getElementById('toast');
+        const linkStatus = document.getElementById('linkStatus');
+        const lumenStatus = document.getElementById('lumenStatus');
+        const locationStatus = document.getElementById('locationStatus');
+        const pageStatus = document.getElementById('pageStatus');
+        const slotText = document.getElementById('slotText');
+
+        let book = null;
+        let rendition = null;
+        let currentBookKey = null;
+        let startX = 0;
+        let startY = 0;
+        let startTime = 0;
+        let isPointerDown = false;
+        let locationsReady = false;
+        let resizeTimer = null;
+
+        const readerTheme = {
+            body: {
+                color: '#ffb23a',
+                background: '#070401',
+                'font-family': 'Georgia, "Times New Roman", serif',
+                'line-height': '1.72',
+                'padding': '0 !important',
+                'overflow-wrap': 'break-word'
+            },
+            p: {
+                color: '#ffb23a',
+                'text-align': 'justify',
+                'text-shadow': '0 0 4px rgba(255, 178, 58, 0.22)'
+            },
+            h1: {
+                color: '#ffd58a',
+                'font-family': 'Georgia, "Times New Roman", serif',
+                'text-shadow': '0 0 8px rgba(255, 178, 58, 0.4)'
+            },
+            h2: {
+                color: '#ffd58a',
+                'font-family': 'Georgia, "Times New Roman", serif'
+            },
+            a: {
+                color: '#ffd58a'
+            },
+            '::selection': {
+                background: 'rgba(255, 178, 58, 0.28)'
+            }
+        };
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.remove('visible');
+            void toast.offsetWidth;
+            toast.classList.add('visible');
+        }
+
+        function pulseTurn() {
+            screen.classList.remove('turning');
+            void screen.offsetWidth;
+            screen.classList.add('turning');
+            window.setTimeout(() => screen.classList.remove('turning'), 380);
+        }
+
+        function pulseBookmark() {
+            screen.classList.remove('bookmarked');
+            void screen.offsetWidth;
+            screen.classList.add('bookmarked');
+            window.setTimeout(() => screen.classList.remove('bookmarked'), 620);
+        }
+
+        function formatPercent(value) {
+            if (!Number.isFinite(value)) return '00.0%';
+            return `${Math.max(0, Math.min(100, value * 100)).toFixed(1)}%`;
+        }
+
+        function getBookKey(file) {
+            return `auspex-bookmark::${file.name}::${file.size}::${file.lastModified}`;
+        }
+
+        function updateLocation(location) {
+            if (!location || !location.start) return;
+
+            const cfi = location.start.cfi;
+            localStorage.setItem(`${currentBookKey}::last`, cfi);
+
+            const spineIndex = typeof location.start.index === 'number' ? location.start.index + 1 : 1;
+            const totalSpine = book && book.spine && book.spine.length ? book.spine.length : '?';
+            locationStatus.textContent = `LOC: ${String(spineIndex).padStart(2, '0')} / ${totalSpine}`;
+
+            if (locationsReady && book.locations && cfi) {
+                pageStatus.textContent = `PROGRESS: ${formatPercent(book.locations.percentageFromCfi(cfi))}`;
+            } else {
+                pageStatus.textContent = 'CALIBRATING';
+            }
+        }
+
+        async function saveBookmark() {
+            if (!rendition || !currentBookKey) {
+                showToast('No codex loaded. Insert dataslate first. Obviously.');
+                return;
+            }
+
+            const location = rendition.currentLocation();
+            if (!location || !location.start || !location.start.cfi) {
+                showToast('Bookmark failed. Machine spirit is being dramatic.');
+                return;
+            }
+
+            localStorage.setItem(`${currentBookKey}::bookmark`, location.start.cfi);
+            localStorage.setItem(`${currentBookKey}::last`, location.start.cfi);
+            pulseBookmark();
+            showToast('Bookmark Sigil Burned Into Local Memory');
+        }
+
+        async function goNext() {
+            if (!rendition) return;
+            pulseTurn();
+            try {
+                await rendition.next();
+            } catch (error) {
+                showToast('End of codex boundary reached');
+            }
+        }
+
+        async function goPrev() {
+            if (!rendition) return;
+            pulseTurn();
+            try {
+                await rendition.prev();
+            } catch (error) {
+                showToast('Beginning of codex boundary reached');
+            }
+        }
+
+        function wireGestureLayer() {
+            gestureLayer.addEventListener('pointerdown', (event) => {
+                isPointerDown = true;
+                startX = event.clientX;
+                startY = event.clientY;
+                startTime = Date.now();
+                gestureLayer.setPointerCapture(event.pointerId);
+            });
+
+            gestureLayer.addEventListener('pointerup', (event) => {
+                if (!isPointerDown) return;
+                isPointerDown = false;
+
+                const dx = event.clientX - startX;
+                const dy = event.clientY - startY;
+                const elapsed = Date.now() - startTime;
+                const absX = Math.abs(dx);
+                const absY = Math.abs(dy);
+
+                if (dy > 72 && absY > absX * 1.35) {
+                    saveBookmark();
+                    return;
+                }
+
+                if (absX > 52 && absX > absY * 1.15) {
+                    dx < 0 ? goNext() : goPrev();
+                    return;
+                }
+
+                if (absX < 16 && absY < 16 && elapsed < 360) {
+                    const rect = gestureLayer.getBoundingClientRect();
+                    const localX = event.clientX - rect.left;
+                    localX > rect.width / 2 ? goNext() : goPrev();
+                }
+            });
+
+            gestureLayer.addEventListener('pointercancel', () => {
+                isPointerDown = false;
+            });
+        }
+
+        async function loadEpub(file) {
+            if (!file) return;
+
+            if (!window.ePub) {
+                showToast('EPUB engine failed to load. Check connection, then reload.');
+                return;
+            }
+
+            const buffer = await file.arrayBuffer();
+            currentBookKey = getBookKey(file);
+            locationsReady = false;
+
+            if (rendition) {
+                rendition.destroy();
+                rendition = null;
+            }
+
+            if (book) {
+                book.destroy();
+                book = null;
+            }
+
+            viewer.innerHTML = '';
+            placeholder.classList.add('hidden');
+            pulseTurn();
+
+            book = ePub(buffer);
+
+            rendition = book.renderTo('viewer', {
+                width: '100%',
+                height: '100%',
+                flow: 'paginated',
+                manager: 'default',
+                spread: 'none',
+                allowScriptedContent: false
+            });
+
+            rendition.themes.register('auspexAmber', readerTheme);
+            rendition.themes.select('auspexAmber');
+            rendition.themes.fontSize('112%');
+            rendition.themes.override('padding', 'clamp(22px, 7vw, 40px) clamp(20px, 7vw, 38px)');
+
+            rendition.on('relocated', updateLocation);
+            rendition.on('rendered', () => {
+                linkStatus.textContent = 'Link: Established // Sanctified';
+                lumenStatus.textContent = 'Lumen: 88%';
+            });
+
+            let title = file.name.replace(/\.epub$/i, '');
+            try {
+                const metadata = await book.loaded.metadata;
+                if (metadata && metadata.title) title = metadata.title;
+            } catch (error) {
+                // Metadata is ornamental. The codex still reads.
+            }
+
+            const savedBookmark = localStorage.getItem(`${currentBookKey}::bookmark`);
+            const lastLocation = localStorage.getItem(`${currentBookKey}::last`);
+            const target = savedBookmark || lastLocation || undefined;
+
+            await rendition.display(target);
+
+            linkStatus.textContent = 'Link: Established // Sanctified';
+            slotText.textContent = `Dataslate Mounted`;
+            showToast(savedBookmark ? `Bookmark Restored: ${title}` : `Codex Mounted: ${title}`);
+
+            book.ready.then(() => book.locations.generate(900)).then(() => {
+                locationsReady = true;
+                updateLocation(rendition.currentLocation());
+            }).catch(() => {
+                locationsReady = false;
+                pageStatus.textContent = 'LOC MODE';
+            });
+        }
+
+        input.addEventListener('change', async (event) => {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            if (!/\.epub$/i.test(file.name)) {
+                showToast('Rejected. Dataslate must be EPUB.');
+                input.value = '';
+                return;
+            }
+
+            try {
+                await loadEpub(file);
+            } catch (error) {
+                console.error(error);
+                placeholder.classList.remove('hidden');
+                linkStatus.textContent = 'Link: Failed // Dataslate Corrupt';
+                pageStatus.textContent = 'LOAD ERROR';
+                showToast('Codex failed to mount. Try another EPUB.');
+            }
+        });
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+                event.preventDefault();
+                goNext();
+            }
+
+            if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+                event.preventDefault();
+                goPrev();
+            }
+
+            if (event.key.toLowerCase() === 'b') {
+                event.preventDefault();
+                saveBookmark();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (rendition) rendition.resize();
+            }, 180);
+        });
+
+        function occasionalAmbientFlicker() {
+            if (Math.random() > 0.35) return;
+            screen.classList.remove('ambient-flicker');
+            void screen.offsetWidth;
+            screen.classList.add('ambient-flicker');
+            window.setTimeout(() => screen.classList.remove('ambient-flicker'), 300);
+        }
+
+        setInterval(occasionalAmbientFlicker, 9500);
+
+        wireGestureLayer();
+    </script>
+</body>
+</html>
