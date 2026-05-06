@@ -1,15 +1,16 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Auspex Codex EPUB Reader</title>
+    <title>Auspex Codex EPUB Reader // Sanctified</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
-    <!-- Required for static GitHub Pages EPUB loading -->
+    <!-- Static GitHub Pages compatible EPUB loading -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
@@ -18,12 +19,18 @@
             --iron: #1a1c1e;
             --amber: #ffb23a;
             --amber-hot: #ffd58a;
+            --amber-low: rgba(255, 178, 58, 0.58);
             --amber-dim: rgba(255, 178, 58, 0.16);
             --tallow: #f1e7c0;
-            --rust: #3d2b1f;
             --frame-border: #2a2d31;
             --black-glass: #070401;
-            --slot-red: #3d1f1f;
+
+            --scanline-opacity: 0.42;
+            --smudge-opacity: 0.42;
+            --chrome-focus-opacity: 0.2;
+            --ambient-on: 1;
+            --screen-glow: 0 0 0 1px rgba(255, 178, 58, 0.11), 0 12px 28px rgba(0, 0, 0, 0.55);
+            --panel-bg: rgba(7, 4, 1, 0.94);
         }
 
         * {
@@ -52,6 +59,11 @@
             padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
             cursor: crosshair;
             user-select: none;
+        }
+
+        button,
+        input {
+            font: inherit;
         }
 
         .svg-filters {
@@ -149,9 +161,7 @@
             grid-template-rows: auto 1fr auto;
             box-shadow:
                 inset 0 0 70px rgba(0, 0, 0, 1),
-                0 0 0 1px rgba(255, 178, 58, 0.11),
-                0 12px 28px rgba(0, 0, 0, 0.55);
-            filter: url(#tallow-smudge);
+                var(--screen-glow);
             transform-origin: center;
             touch-action: none;
         }
@@ -167,6 +177,8 @@
                 linear-gradient(90deg, rgba(255, 120, 0, 0.07), rgba(255, 205, 90, 0.025), rgba(255, 80, 0, 0.06));
             background-size: 100% 4px, 3px 100%;
             mix-blend-mode: screen;
+            opacity: var(--scanline-opacity);
+            transition: opacity 220ms ease;
         }
 
         .phosphor-screen::after {
@@ -191,6 +203,7 @@
             color: var(--amber);
             background: rgba(2, 8, 4, 0.88);
             backdrop-filter: blur(3px);
+            transition: opacity 260ms ease, transform 260ms ease;
         }
 
         .reader-header {
@@ -208,6 +221,19 @@
             opacity: 0.78;
         }
 
+        .phosphor-screen.reading-focus:not(.show-ui) .reader-header,
+        .phosphor-screen.reading-focus:not(.show-ui) .reader-footer {
+            opacity: var(--chrome-focus-opacity);
+        }
+
+        .phosphor-screen.reading-focus:not(.show-ui) .reader-header {
+            transform: translateY(-2px);
+        }
+
+        .phosphor-screen.reading-focus:not(.show-ui) .reader-footer {
+            transform: translateY(2px);
+        }
+
         .status-badge {
             font-size: clamp(8px, 2.5vw, 10px);
             text-transform: uppercase;
@@ -215,6 +241,11 @@
             line-height: 1.35;
             text-shadow: 0 0 8px rgba(255, 178, 58, 0.55);
             animation: flicker 4s infinite;
+        }
+
+        [data-protocol="archivist"] .status-badge {
+            animation: none;
+            text-shadow: none;
         }
 
         .status-badge:last-child,
@@ -235,6 +266,7 @@
             inset: 0;
             z-index: 3;
             overflow: hidden;
+            background: var(--black-glass);
         }
 
         .placeholder-content {
@@ -374,6 +406,9 @@
                 radial-gradient(circle at 70% 82%, rgba(241, 231, 192, 0.052) 0%, transparent 30%);
             mix-blend-mode: overlay;
             pointer-events: none;
+            opacity: var(--smudge-opacity);
+            filter: url(#tallow-smudge);
+            transition: opacity 220ms ease;
         }
 
         .scanline-anim {
@@ -386,6 +421,11 @@
             background: linear-gradient(to bottom, transparent, rgba(255, 178, 58, 0.12), transparent);
             animation: scan 8s linear infinite;
             pointer-events: none;
+            opacity: var(--scanline-opacity);
+        }
+
+        [data-protocol="archivist"] .scanline-anim {
+            animation-duration: 16s;
         }
 
         .page-flash {
@@ -415,15 +455,72 @@
             transform: none !important;
         }
 
+        [data-protocol="archivist"].phosphor-screen.ambient-flicker {
+            animation: none;
+        }
+
         .phosphor-screen.bookmarked {
             animation: bookmarkPulse 580ms ease-out;
+        }
+
+        .purity-seal {
+            position: absolute;
+            top: 16px;
+            right: 18px;
+            z-index: 72;
+            width: 30px;
+            height: 42px;
+            display: grid;
+            place-items: start center;
+            color: var(--amber-hot);
+            text-shadow: 0 0 10px rgba(255, 178, 58, 0.7);
+            pointer-events: none;
+            opacity: 0.88;
+            transform-origin: top center;
+        }
+
+        .purity-seal::before {
+            content: "★";
+            position: relative;
+            z-index: 2;
+            display: grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 178, 58, 0.55);
+            background: rgba(61, 31, 31, 0.72);
+            box-shadow: 0 0 14px rgba(255, 178, 58, 0.18), inset 0 0 10px rgba(0, 0, 0, 0.55);
+            font-size: 11px;
+        }
+
+        .purity-seal::after {
+            content: "";
+            position: absolute;
+            top: 20px;
+            width: 16px;
+            height: 24px;
+            background:
+                linear-gradient(135deg, rgba(255, 178, 58, 0.42), rgba(61, 31, 31, 0.12)),
+                linear-gradient(45deg, transparent 0 35%, rgba(0, 0, 0, 0.28) 36% 48%, transparent 49%);
+            clip-path: polygon(0 0, 100% 0, 78% 100%, 50% 74%, 22% 100%);
+            opacity: 0.72;
+        }
+
+        .purity-seal.hidden {
+            opacity: 0;
+            transform: translateY(-8px) rotate(-3deg);
+        }
+
+        .purity-seal.pulse {
+            animation: sealSet 620ms ease-out;
         }
 
         .toast {
             position: absolute;
             left: 50%;
             bottom: 72px;
-            z-index: 80;
+            z-index: 120;
             width: calc(100% - 44px);
             transform: translateX(-50%) translateY(12px);
             padding: 12px 14px;
@@ -442,6 +539,186 @@
 
         .toast.visible {
             animation: toastRise 2.1s ease forwards;
+        }
+
+        .ritual-panel,
+        .search-panel {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            z-index: 96;
+            border: 1px solid rgba(255, 178, 58, 0.24);
+            background:
+                linear-gradient(135deg, rgba(255, 213, 138, 0.055), transparent 34%),
+                var(--panel-bg);
+            color: var(--amber);
+            box-shadow:
+                0 18px 46px rgba(0, 0, 0, 0.8),
+                inset 0 0 22px rgba(0, 0, 0, 0.78);
+            transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+        }
+
+        .ritual-panel {
+            bottom: 14px;
+            padding: 14px;
+        }
+
+        .search-panel {
+            top: 14px;
+            max-height: calc(100% - 28px);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            padding: 14px;
+        }
+
+        .ritual-panel.hidden,
+        .search-panel.hidden {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(12px);
+            pointer-events: none;
+        }
+
+        .search-panel.hidden {
+            transform: translateY(-12px);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: var(--amber-hot);
+            font-size: 10px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(255, 178, 58, 0.42);
+        }
+
+        .panel-title small {
+            color: rgba(255, 178, 58, 0.46);
+            font-size: 8px;
+            letter-spacing: 0.12em;
+        }
+
+        .protocol-strip,
+        .control-grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        .protocol-strip {
+            grid-template-columns: repeat(3, 1fr);
+            margin-bottom: 10px;
+        }
+
+        .control-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .ritual-button,
+        .protocol-chip,
+        .search-jump {
+            min-height: 38px;
+            border: 1px solid rgba(255, 178, 58, 0.22);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.12)),
+                rgba(18, 13, 8, 0.86);
+            color: rgba(255, 213, 138, 0.76);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 9px;
+            cursor: crosshair;
+            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.62);
+        }
+
+        .ritual-button:active,
+        .protocol-chip:active,
+        .search-jump:active {
+            transform: translateY(1px);
+        }
+
+        .ritual-button:hover,
+        .protocol-chip:hover,
+        .search-jump:hover,
+        .protocol-chip.active {
+            color: var(--amber-hot);
+            border-color: rgba(255, 178, 58, 0.48);
+            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.62), 0 0 18px rgba(255, 178, 58, 0.1);
+        }
+
+        .ritual-button[disabled] {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .search-input {
+            width: 100%;
+            min-height: 40px;
+            border: 1px solid rgba(255, 178, 58, 0.26);
+            background: rgba(0, 0, 0, 0.64);
+            color: var(--amber-hot);
+            padding: 0 12px;
+            outline: none;
+            letter-spacing: 0.05em;
+            user-select: text;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 178, 58, 0.38);
+        }
+
+        .search-results {
+            min-height: 80px;
+            overflow: auto;
+            overscroll-behavior: contain;
+            padding-right: 4px;
+            user-select: text;
+        }
+
+        .search-status {
+            color: rgba(255, 178, 58, 0.55);
+            font-size: 9px;
+            line-height: 1.55;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .search-card {
+            border: 1px solid rgba(255, 178, 58, 0.16);
+            background: rgba(0, 0, 0, 0.42);
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+
+        .search-card-title {
+            color: var(--amber-hot);
+            font-size: 9px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .search-excerpt {
+            color: rgba(255, 213, 138, 0.78);
+            font-size: 10px;
+            line-height: 1.55;
+            margin-bottom: 10px;
+            text-align: left;
+            opacity: 1;
+        }
+
+        .search-jump {
+            width: 100%;
         }
 
         .dataslate-dock {
@@ -480,6 +757,7 @@
             box-shadow:
                 inset 0 9px 18px rgba(0, 0, 0, 0.78),
                 0 0 18px rgba(255, 178, 58, 0.04);
+            cursor: crosshair;
         }
 
         .dataslate-slot::before {
@@ -558,23 +836,23 @@
         }
 
         @keyframes boot {
-            from { opacity: 0.74; filter: brightness(1.55) contrast(1.08) url(#tallow-smudge); }
-            45% { opacity: 1; filter: brightness(1.22) contrast(1.05) url(#tallow-smudge); }
-            to { opacity: 1; filter: brightness(1) contrast(1) url(#tallow-smudge); }
+            from { opacity: 0.74; filter: brightness(1.55) contrast(1.08); }
+            45% { opacity: 1; filter: brightness(1.22) contrast(1.05); }
+            to { opacity: 1; filter: brightness(1) contrast(1); }
         }
 
         @keyframes softFlicker {
-            0% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
-            50% { filter: brightness(1.035) contrast(1.01) url(#tallow-smudge); }
-            100% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+            0% { filter: brightness(1) contrast(1); }
+            50% { filter: brightness(1.035) contrast(1.01); }
+            100% { filter: brightness(1) contrast(1); }
         }
 
         @keyframes ambientFlicker {
-            0% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
-            18% { filter: brightness(1.18) contrast(1.04) url(#tallow-smudge); }
-            42% { filter: brightness(0.94) contrast(1.02) url(#tallow-smudge); }
-            66% { filter: brightness(1.11) contrast(1.025) url(#tallow-smudge); }
-            100% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+            0% { filter: brightness(1) contrast(1); }
+            18% { filter: brightness(1.18) contrast(1.04); }
+            42% { filter: brightness(0.94) contrast(1.02); }
+            66% { filter: brightness(1.11) contrast(1.025); }
+            100% { filter: brightness(1) contrast(1); }
         }
 
         @keyframes pageFlash {
@@ -584,9 +862,15 @@
         }
 
         @keyframes bookmarkPulse {
-            0% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.11); }
+            0% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), var(--screen-glow); }
             35% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.48), 0 0 34px rgba(255, 178, 58, 0.24); }
-            100% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.11); }
+            100% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), var(--screen-glow); }
+        }
+
+        @keyframes sealSet {
+            0% { transform: translateY(-14px) rotate(-6deg); opacity: 0; }
+            45% { transform: translateY(2px) rotate(3deg); opacity: 1; }
+            100% { transform: translateY(0) rotate(0); opacity: 0.88; }
         }
 
         @keyframes toastRise {
@@ -635,6 +919,10 @@
             .cover-panel img {
                 max-height: 48dvh;
             }
+
+            .control-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -664,10 +952,10 @@
         <div class="rail left"></div>
         <div class="rail right"></div>
 
-        <section class="phosphor-screen boot-seq" id="screen" aria-label="Reader screen">
+        <section class="phosphor-screen boot-seq show-ui" id="screen" aria-label="Reader screen" data-protocol="sanctified">
             <header class="reader-header">
                 <div class="status-badge" id="linkStatus">Link: Dormant // Awaiting Dataslate</div>
-                <div class="status-badge" id="lumenStatus">Lumen: 88%</div>
+                <div class="status-badge" id="lumenStatus">Protocol: Sanctified</div>
             </header>
 
             <div class="screen-body" id="screenBody">
@@ -679,10 +967,10 @@
                         Insert a sanctioned EPUB dataslate through the lower intake. The reader will awaken, bind the codex, and render the text in amber phosphor across the sanctified glass.
                     </p>
                     <p>
-                        Swipe left or right across the screen to turn pages. Swipe down to burn a bookmark sigil into local memory. Tap the left or right half of the glass for quiet page movement, because apparently even ancient machine spirits appreciate ergonomics.
+                        Swipe left or right across the screen to turn pages. Swipe down to burn a bookmark sigil into local memory. Hold the glass to reveal the command rites.
                     </p>
                     <p>
-                        Amber scanlines remain active across the whole display. Page turns will give a soft phosphor blink, with only an occasional old-screen flicker. No migraine demon gets a lease on this chassis.
+                        The machine keeps the frame theatrical and the scripture readable. Invoke Full Auspex for atmosphere, Sanctified Reading for daily use, or Archivist Purity when legibility outranks ceremony.
                     </p>
                 </article>
 
@@ -692,6 +980,46 @@
                     </div>
                     <div class="cover-caption" id="coverCaption">Codex Cover Acquired</div>
                 </div>
+
+                <div class="purity-seal hidden" id="bookmarkSeal" aria-hidden="true"></div>
+
+                <section class="ritual-panel hidden" id="ritualPanel" aria-label="Command rites">
+                    <div class="panel-title">
+                        <span>Command Rites</span>
+                        <small>Hold glass / tap center</small>
+                    </div>
+
+                    <div class="protocol-strip" aria-label="Reader comfort protocols">
+                        <button class="protocol-chip" type="button" data-protocol-target="full">Full Auspex</button>
+                        <button class="protocol-chip active" type="button" data-protocol-target="sanctified">Sanctified</button>
+                        <button class="protocol-chip" type="button" data-protocol-target="archivist">Archivist</button>
+                    </div>
+
+                    <div class="control-grid">
+                        <button class="ritual-button" type="button" id="searchButton">Auspex Query</button>
+                        <button class="ritual-button" type="button" id="fontDownButton">Scripture −</button>
+                        <button class="ritual-button" type="button" id="fontUpButton">Scripture +</button>
+                        <button class="ritual-button" type="button" id="bookmarkButton">Burn Sigil</button>
+                        <button class="ritual-button" type="button" id="returnButton" disabled>Return Vector</button>
+                        <button class="ritual-button" type="button" id="closeRitesButton">Seal Rites</button>
+                    </div>
+                </section>
+
+                <section class="search-panel hidden" id="searchPanel" aria-label="Auspex query panel">
+                    <div class="panel-title">
+                        <span>Auspex Query</span>
+                        <small>Chapter-level scan</small>
+                    </div>
+
+                    <form class="search-row" id="searchForm">
+                        <input class="search-input" id="searchInput" type="search" placeholder="Invoke term..." autocomplete="off" />
+                        <button class="ritual-button" type="submit">Scan</button>
+                    </form>
+
+                    <div class="search-results" id="searchResults">
+                        <div class="search-status">Enter a term. Results jump by canto and preserve a return vector.</div>
+                    </div>
+                </section>
 
                 <div class="smudge-overlay"></div>
                 <div class="scanline-anim"></div>
@@ -713,8 +1041,8 @@
             </label>
             <input id="epubInput" type="file" accept=".epub,application/epub+zip" />
             <div class="microtext">
-                <span>Swipe ↓ Bookmark</span>
-                <span>Swipe ← / → Canto</span>
+                <span>↓ Bookmark // Hold Rites</span>
+                <span>← / → Canto</span>
             </div>
         </section>
     </main>
@@ -734,6 +1062,18 @@
         const coverPanel = document.getElementById('coverPanel');
         const coverImage = document.getElementById('coverImage');
         const coverCaption = document.getElementById('coverCaption');
+        const bookmarkSeal = document.getElementById('bookmarkSeal');
+        const ritualPanel = document.getElementById('ritualPanel');
+        const searchPanel = document.getElementById('searchPanel');
+        const searchButton = document.getElementById('searchButton');
+        const searchInput = document.getElementById('searchInput');
+        const searchForm = document.getElementById('searchForm');
+        const searchResults = document.getElementById('searchResults');
+        const fontDownButton = document.getElementById('fontDownButton');
+        const fontUpButton = document.getElementById('fontUpButton');
+        const bookmarkButton = document.getElementById('bookmarkButton');
+        const returnButton = document.getElementById('returnButton');
+        const closeRitesButton = document.getElementById('closeRitesButton');
 
         let book = null;
         let rendition = null;
@@ -746,37 +1086,161 @@
         let isPointerDown = false;
         let locationsReady = false;
         let resizeTimer = null;
+        let uiTimer = null;
+        let longPressTimer = null;
+        let longPressTriggered = false;
+        let returnCfi = null;
+        let activeSearchNonce = 0;
 
-        const readerTheme = {
-            body: {
-                color: '#ffb23a',
-                background: '#070401',
-                'font-family': 'Georgia, "Times New Roman", serif',
-                'line-height': '1.72',
-                'padding': '0 !important',
-                'overflow-wrap': 'break-word'
+        const protocols = {
+            full: {
+                label: 'Full Auspex',
+                status: 'Protocol: Full Auspex',
+                fontSize: 112,
+                lineHeight: '1.72',
+                padding: 'clamp(22px, 7vw, 40px) clamp(20px, 7vw, 38px)',
+                paragraphGlow: '0 0 5px rgba(255, 178, 58, 0.28)',
+                headingGlow: '0 0 10px rgba(255, 178, 58, 0.5)',
+                scanline: 0.78,
+                smudge: 0.72,
+                focusOpacity: 0.28,
+                ambient: true,
+                justify: 'justify'
             },
-            p: {
-                color: '#ffb23a',
-                'text-align': 'justify',
-                'text-shadow': '0 0 4px rgba(255, 178, 58, 0.22)'
+            sanctified: {
+                label: 'Sanctified Reading',
+                status: 'Protocol: Sanctified',
+                fontSize: 116,
+                lineHeight: '1.76',
+                padding: 'clamp(24px, 7vw, 42px) clamp(21px, 7vw, 40px)',
+                paragraphGlow: '0 0 3px rgba(255, 178, 58, 0.16)',
+                headingGlow: '0 0 7px rgba(255, 178, 58, 0.32)',
+                scanline: 0.36,
+                smudge: 0.32,
+                focusOpacity: 0.18,
+                ambient: false,
+                justify: 'justify'
             },
-            h1: {
-                color: '#ffd58a',
-                'font-family': 'Georgia, "Times New Roman", serif',
-                'text-shadow': '0 0 8px rgba(255, 178, 58, 0.4)'
-            },
-            h2: {
-                color: '#ffd58a',
-                'font-family': 'Georgia, "Times New Roman", serif'
-            },
-            a: {
-                color: '#ffd58a'
-            },
-            '::selection': {
-                background: 'rgba(255, 178, 58, 0.28)'
+            archivist: {
+                label: 'Archivist Purity',
+                status: 'Protocol: Archivist',
+                fontSize: 120,
+                lineHeight: '1.86',
+                padding: 'clamp(26px, 8vw, 46px) clamp(22px, 7vw, 42px)',
+                paragraphGlow: 'none',
+                headingGlow: 'none',
+                scanline: 0.12,
+                smudge: 0.12,
+                focusOpacity: 0.12,
+                ambient: false,
+                justify: 'left'
             }
         };
+
+        let currentProtocolName = localStorage.getItem('auspex::protocol') || 'sanctified';
+        if (!protocols[currentProtocolName]) currentProtocolName = 'sanctified';
+
+        let fontPercent = Number.parseInt(localStorage.getItem('auspex::fontPercent') || protocols[currentProtocolName].fontSize, 10);
+        if (!Number.isFinite(fontPercent)) fontPercent = protocols[currentProtocolName].fontSize;
+
+        function currentProtocol() {
+            return protocols[currentProtocolName] || protocols.sanctified;
+        }
+
+        function makeReaderTheme() {
+            const protocol = currentProtocol();
+
+            return {
+                body: {
+                    color: '#ffb23a',
+                    background: '#070401',
+                    'font-family': 'Georgia, "Times New Roman", serif',
+                    'line-height': protocol.lineHeight,
+                    'padding': '0 !important',
+                    'overflow-wrap': 'break-word'
+                },
+                p: {
+                    color: '#ffb23a',
+                    'text-align': protocol.justify,
+                    'text-shadow': protocol.paragraphGlow,
+                    'orphans': '2',
+                    'widows': '2'
+                },
+                h1: {
+                    color: '#ffd58a',
+                    'font-family': 'Georgia, "Times New Roman", serif',
+                    'text-shadow': protocol.headingGlow,
+                    'line-height': '1.2'
+                },
+                h2: {
+                    color: '#ffd58a',
+                    'font-family': 'Georgia, "Times New Roman", serif',
+                    'text-shadow': protocol.headingGlow,
+                    'line-height': '1.25'
+                },
+                h3: {
+                    color: '#ffd58a',
+                    'font-family': 'Georgia, "Times New Roman", serif'
+                },
+                a: {
+                    color: '#ffd58a'
+                },
+                img: {
+                    'max-width': '100%',
+                    height: 'auto'
+                },
+                '::selection': {
+                    background: 'rgba(255, 178, 58, 0.28)'
+                }
+            };
+        }
+
+        function applyProtocol(name, options = {}) {
+            if (!protocols[name]) name = 'sanctified';
+            currentProtocolName = name;
+            localStorage.setItem('auspex::protocol', currentProtocolName);
+
+            const protocol = currentProtocol();
+            screen.dataset.protocol = currentProtocolName;
+            document.documentElement.style.setProperty('--scanline-opacity', protocol.scanline);
+            document.documentElement.style.setProperty('--smudge-opacity', protocol.smudge);
+            document.documentElement.style.setProperty('--chrome-focus-opacity', protocol.focusOpacity);
+
+            if (!options.keepFont) {
+                fontPercent = protocol.fontSize;
+                localStorage.setItem('auspex::fontPercent', String(fontPercent));
+            }
+
+            if (rendition) {
+                rendition.themes.register('auspexAmber', makeReaderTheme());
+                rendition.themes.select('auspexAmber');
+                rendition.themes.fontSize(`${fontPercent}%`);
+                rendition.themes.override('padding', protocol.padding);
+            }
+
+            lumenStatus.textContent = protocol.status;
+
+            document.querySelectorAll('.protocol-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.protocolTarget === currentProtocolName);
+            });
+
+            if (!options.silent) {
+                showToast(`${protocol.label} Protocol Engaged`);
+            }
+        }
+
+        function adjustFont(delta) {
+            fontPercent = Math.max(88, Math.min(148, fontPercent + delta));
+            localStorage.setItem('auspex::fontPercent', String(fontPercent));
+
+            if (rendition) {
+                rendition.themes.fontSize(`${fontPercent}%`);
+                if (rendition.resize) rendition.resize();
+            }
+
+            revealUi(3200);
+            showToast(`Scripture Scale: ${fontPercent}%`);
+        }
 
         function showToast(message) {
             toast.textContent = message;
@@ -812,6 +1276,10 @@
             void screen.offsetWidth;
             screen.classList.add('bookmarked');
             window.setTimeout(() => screen.classList.remove('bookmarked'), 620);
+
+            bookmarkSeal.classList.remove('hidden', 'pulse');
+            void bookmarkSeal.offsetWidth;
+            bookmarkSeal.classList.add('pulse');
         }
 
         function formatPercent(value) {
@@ -965,6 +1433,7 @@
                 window.clearTimeout(coverTimer);
                 coverTimer = window.setTimeout(() => {
                     coverPanel.classList.add('hidden');
+                    enterReadingFocus();
                 }, 2800);
             } catch (error) {
                 console.warn('Cover extraction failed:', error);
@@ -973,78 +1442,385 @@
         }
 
         function updateLocation(location) {
-            if (!location || !location.start) return;
+            if (!location || !location.start || !currentBookKey) return;
 
             const cfi = location.start.cfi;
             localStorage.setItem(`${currentBookKey}::last`, cfi);
 
             const spineIndex = typeof location.start.index === 'number' ? location.start.index + 1 : 1;
             const totalSpine = book && book.spine && book.spine.length ? book.spine.length : '?';
-            locationStatus.textContent = `LOC: ${String(spineIndex).padStart(2, '0')} / ${totalSpine}`;
+            locationStatus.textContent = `CANTO: ${String(spineIndex).padStart(2, '0')} / ${totalSpine}`;
 
             if (locationsReady && book.locations && cfi) {
-                pageStatus.textContent = `PROGRESS: ${formatPercent(book.locations.percentageFromCfi(cfi))}`;
+                pageStatus.textContent = `RITE PROGRESS: ${formatPercent(book.locations.percentageFromCfi(cfi))}`;
             } else {
                 pageStatus.textContent = 'CALIBRATING';
             }
+
+            const bookmark = localStorage.getItem(`${currentBookKey}::bookmark`);
+            if (bookmark && bookmark === cfi) {
+                bookmarkSeal.classList.remove('hidden');
+            }
+        }
+
+        function currentCfi() {
+            if (!rendition) return null;
+            const location = rendition.currentLocation();
+            return location && location.start && location.start.cfi ? location.start.cfi : null;
         }
 
         async function saveBookmark() {
             if (!rendition || !currentBookKey) {
-                showToast('No codex loaded. Insert dataslate first. Obviously.');
+                showToast('No codex loaded. Insert dataslate first.');
                 return;
             }
 
-            const location = rendition.currentLocation();
-            if (!location || !location.start || !location.start.cfi) {
+            const cfi = currentCfi();
+
+            if (!cfi) {
                 showToast('Bookmark failed. Machine spirit is being dramatic.');
                 return;
             }
 
-            localStorage.setItem(`${currentBookKey}::bookmark`, location.start.cfi);
-            localStorage.setItem(`${currentBookKey}::last`, location.start.cfi);
+            localStorage.setItem(`${currentBookKey}::bookmark`, cfi);
+            localStorage.setItem(`${currentBookKey}::last`, cfi);
             pulseBookmark();
             showToast('Bookmark Sigil Burned Into Local Memory');
         }
 
+        function enterReadingFocus() {
+            if (!ritualPanel.classList.contains('hidden') || !searchPanel.classList.contains('hidden')) return;
+            screen.classList.add('reading-focus');
+            screen.classList.remove('show-ui');
+            clearTimeout(uiTimer);
+        }
+
+        function revealUi(duration = 3200) {
+            screen.classList.add('show-ui');
+            screen.classList.remove('reading-focus');
+            clearTimeout(uiTimer);
+            if (duration) {
+                uiTimer = window.setTimeout(enterReadingFocus, duration);
+            }
+        }
+
+        function hideRitualPanel() {
+            ritualPanel.classList.add('hidden');
+        }
+
+        function showRitualPanel() {
+            hideCover();
+            searchPanel.classList.add('hidden');
+            ritualPanel.classList.remove('hidden');
+            revealUi(0);
+        }
+
+        function toggleRitualPanel() {
+            if (ritualPanel.classList.contains('hidden')) {
+                showRitualPanel();
+            } else {
+                hideRitualPanel();
+                revealUi(1800);
+            }
+        }
+
+        function hidePanels() {
+            hideRitualPanel();
+            searchPanel.classList.add('hidden');
+        }
+
         async function goNext() {
-            if (!rendition) return;
+            if (!rendition) {
+                revealUi(2000);
+                return;
+            }
+
+            hidePanels();
             pulseTurn();
+
             try {
                 await rendition.next();
+                enterReadingFocus();
             } catch (error) {
                 showToast('End of codex boundary reached');
             }
         }
 
         async function goPrev() {
-            if (!rendition) return;
+            if (!rendition) {
+                revealUi(2000);
+                return;
+            }
+
+            hidePanels();
             pulseTurn();
+
             try {
                 await rendition.prev();
+                enterReadingFocus();
             } catch (error) {
                 showToast('Beginning of codex boundary reached');
+            }
+        }
+
+        function getSpineItems() {
+            if (!book || !book.spine) return [];
+            if (Array.isArray(book.spine.spineItems)) return book.spine.spineItems;
+            if (Array.isArray(book.spine.items)) return book.spine.items;
+
+            const items = [];
+            if (typeof book.spine.each === 'function') {
+                book.spine.each(item => items.push(item));
+            }
+            return items;
+        }
+
+        function tocTitleForHref(href, fallbackIndex) {
+            const cleanHref = (href || '').split('#')[0];
+
+            function walk(items) {
+                for (const item of items || []) {
+                    const itemHref = (item.href || '').split('#')[0];
+                    if (itemHref === cleanHref || itemHref.endsWith(cleanHref) || cleanHref.endsWith(itemHref)) {
+                        return item.label || item.title || item.text || null;
+                    }
+
+                    const child = walk(item.subitems || item.children || []);
+                    if (child) return child;
+                }
+
+                return null;
+            }
+
+            const title = book && book.navigation ? walk(book.navigation.toc || []) : null;
+            return title || `Canto ${String(fallbackIndex + 1).padStart(2, '0')}`;
+        }
+
+        function cleanSearchExcerpt(text, index, queryLength) {
+            const start = Math.max(0, index - 80);
+            const end = Math.min(text.length, index + queryLength + 120);
+            const excerpt = text.slice(start, end).replace(/\s+/g, ' ').trim();
+            return `${start > 0 ? '…' : ''}${excerpt}${end < text.length ? '…' : ''}`;
+        }
+
+        function setSearchStatus(message) {
+            searchResults.innerHTML = `<div class="search-status">${message}</div>`;
+        }
+
+        function openSearchPanel() {
+            hideCover();
+
+            if (!book) {
+                showToast('No codex loaded. Query rite denied.');
+                return;
+            }
+
+            ritualPanel.classList.add('hidden');
+            searchPanel.classList.remove('hidden');
+            revealUi(0);
+            searchInput.focus();
+            searchInput.select();
+        }
+
+        async function runSearch(query) {
+            query = query.trim();
+
+            if (!query) {
+                setSearchStatus('Enter a term. Results jump by canto and preserve a return vector.');
+                return;
+            }
+
+            if (!book) {
+                setSearchStatus('No codex bound. Insert dataslate first.');
+                return;
+            }
+
+            const nonce = ++activeSearchNonce;
+            const priorCfi = currentCfi();
+            if (priorCfi) {
+                returnCfi = priorCfi;
+                returnButton.disabled = false;
+            }
+
+            const lowerQuery = query.toLowerCase();
+            const spineItems = getSpineItems();
+
+            setSearchStatus(`Auspex scanning ${spineItems.length || '?'} canto records...`);
+
+            const results = [];
+
+            for (let i = 0; i < spineItems.length; i += 1) {
+                if (nonce !== activeSearchNonce) return;
+
+                const section = spineItems[i];
+
+                try {
+                    if (typeof section.load === 'function') {
+                        await section.load(book.load.bind(book));
+                    }
+
+                    const body = section.document && section.document.body;
+                    const text = body ? (body.innerText || body.textContent || '') : '';
+
+                    if (text) {
+                        const lowerText = text.toLowerCase();
+                        let from = 0;
+                        let localMatches = 0;
+
+                        while (localMatches < 2) {
+                            const found = lowerText.indexOf(lowerQuery, from);
+                            if (found === -1) break;
+
+                            results.push({
+                                href: section.href,
+                                title: tocTitleForHref(section.href, i),
+                                excerpt: cleanSearchExcerpt(text, found, query.length)
+                            });
+
+                            localMatches += 1;
+                            from = found + lowerQuery.length;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Search skipped spine section:', error);
+                } finally {
+                    try {
+                        if (typeof section.unload === 'function') section.unload();
+                    } catch (error) {
+                        // The machine spirit may keep its scrap memory.
+                    }
+                }
+
+                if (i % 5 === 4) {
+                    setSearchStatus(`Auspex scanning... ${i + 1}/${spineItems.length} records inspected.`);
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+
+                if (results.length >= 30) break;
+            }
+
+            if (nonce !== activeSearchNonce) return;
+
+            if (!results.length) {
+                setSearchStatus(`No sanctioned matches for “${escapeHtml(query)}”.`);
+                return;
+            }
+
+            renderSearchResults(results, query);
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function renderSearchResults(results, query) {
+            const cards = results.map((result, index) => {
+                return `
+                    <article class="search-card">
+                        <div class="search-card-title">${escapeHtml(result.title)} // Match ${String(index + 1).padStart(2, '0')}</div>
+                        <p class="search-excerpt">${escapeHtml(result.excerpt)}</p>
+                        <button class="search-jump" type="button" data-search-href="${escapeHtml(result.href)}">Jump To Canto</button>
+                    </article>
+                `;
+            }).join('');
+
+            searchResults.innerHTML = `
+                <div class="search-status">${results.length} transmission matches for “${escapeHtml(query)}”. Return vector preserved.</div>
+                ${cards}
+            `;
+        }
+
+        async function jumpToSearchResult(href) {
+            if (!rendition || !href) return;
+
+            const priorCfi = currentCfi();
+            if (priorCfi) {
+                returnCfi = priorCfi;
+                returnButton.disabled = false;
+            }
+
+            hidePanels();
+            pulseTurn();
+
+            try {
+                await rendition.display(href);
+                showToast('Search vector reached. Return vector armed.');
+                revealUi(1800);
+            } catch (error) {
+                showToast('Jump failed. Canto vector unstable.');
+            }
+        }
+
+        async function returnToPriorVector() {
+            if (!rendition || !returnCfi) {
+                showToast('No return vector stored.');
+                return;
+            }
+
+            hidePanels();
+            pulseTurn();
+
+            try {
+                await rendition.display(returnCfi);
+                showToast('Prior Reading Vector Restored');
+                returnCfi = null;
+                returnButton.disabled = true;
+                revealUi(1800);
+            } catch (error) {
+                showToast('Return vector failed.');
             }
         }
 
         function wireGestureLayer() {
             gestureLayer.addEventListener('pointerdown', (event) => {
                 isPointerDown = true;
+                longPressTriggered = false;
                 startX = event.clientX;
                 startY = event.clientY;
                 startTime = Date.now();
+
+                window.clearTimeout(longPressTimer);
+                longPressTimer = window.setTimeout(() => {
+                    if (!isPointerDown) return;
+                    longPressTriggered = true;
+                    showRitualPanel();
+                }, 560);
+
                 gestureLayer.setPointerCapture(event.pointerId);
             });
 
+            gestureLayer.addEventListener('pointermove', (event) => {
+                if (!isPointerDown) return;
+
+                const dx = event.clientX - startX;
+                const dy = event.clientY - startY;
+
+                if (Math.hypot(dx, dy) > 18) {
+                    window.clearTimeout(longPressTimer);
+                }
+            });
+
             gestureLayer.addEventListener('pointerup', (event) => {
+                window.clearTimeout(longPressTimer);
+
                 if (!isPointerDown) return;
                 isPointerDown = false;
+
+                if (longPressTriggered) return;
 
                 const dx = event.clientX - startX;
                 const dy = event.clientY - startY;
                 const elapsed = Date.now() - startTime;
                 const absX = Math.abs(dx);
                 const absY = Math.abs(dy);
+                const rect = gestureLayer.getBoundingClientRect();
+                const localX = event.clientX - rect.left;
+                const centerBand = localX > rect.width * 0.36 && localX < rect.width * 0.64;
 
                 if (dy > 72 && absY > absX * 1.35) {
                     saveBookmark();
@@ -1057,13 +1833,17 @@
                 }
 
                 if (absX < 16 && absY < 16 && elapsed < 360) {
-                    const rect = gestureLayer.getBoundingClientRect();
-                    const localX = event.clientX - rect.left;
+                    if (centerBand) {
+                        toggleRitualPanel();
+                        return;
+                    }
+
                     localX > rect.width / 2 ? goNext() : goPrev();
                 }
             });
 
             gestureLayer.addEventListener('pointercancel', () => {
+                window.clearTimeout(longPressTimer);
                 isPointerDown = false;
             });
         }
@@ -1084,8 +1864,13 @@
             const buffer = await file.arrayBuffer();
             currentBookKey = getBookKey(file);
             locationsReady = false;
+            returnCfi = null;
+            returnButton.disabled = true;
 
+            hidePanels();
             hideCover();
+            cleanupCoverUrl();
+            bookmarkSeal.classList.add('hidden');
 
             if (rendition) {
                 rendition.destroy();
@@ -1112,15 +1897,15 @@
                 allowScriptedContent: false
             });
 
-            rendition.themes.register('auspexAmber', readerTheme);
+            rendition.themes.register('auspexAmber', makeReaderTheme());
             rendition.themes.select('auspexAmber');
-            rendition.themes.fontSize('112%');
-            rendition.themes.override('padding', 'clamp(22px, 7vw, 40px) clamp(20px, 7vw, 38px)');
+            rendition.themes.fontSize(`${fontPercent}%`);
+            rendition.themes.override('padding', currentProtocol().padding);
 
             rendition.on('relocated', updateLocation);
             rendition.on('rendered', () => {
                 linkStatus.textContent = 'Link: Established // Sanctified';
-                lumenStatus.textContent = 'Lumen: 88%';
+                lumenStatus.textContent = currentProtocol().status;
             });
 
             let title = file.name.replace(/\.epub$/i, '');
@@ -1137,6 +1922,8 @@
 
             await rendition.display(target);
 
+            if (savedBookmark) bookmarkSeal.classList.remove('hidden');
+
             linkStatus.textContent = 'Link: Established // Sanctified';
             slotText.textContent = 'Dataslate Mounted';
             showToast(savedBookmark ? `Bookmark Restored: ${title}` : `Codex Mounted: ${title}`);
@@ -1150,6 +1937,8 @@
                 locationsReady = false;
                 pageStatus.textContent = 'LOC MODE';
             });
+
+            revealUi(3600);
         }
 
         input.addEventListener('change', async (event) => {
@@ -1174,7 +1963,73 @@
             }
         });
 
+        document.querySelectorAll('.protocol-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                applyProtocol(chip.dataset.protocolTarget);
+                revealUi(3200);
+            });
+        });
+
+        searchButton.addEventListener('click', openSearchPanel);
+        fontDownButton.addEventListener('click', () => adjustFont(-4));
+        fontUpButton.addEventListener('click', () => adjustFont(4));
+        bookmarkButton.addEventListener('click', saveBookmark);
+        returnButton.addEventListener('click', returnToPriorVector);
+        closeRitesButton.addEventListener('click', () => {
+            hidePanels();
+            revealUi(1200);
+        });
+
+        searchForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            runSearch(searchInput.value);
+        });
+
+        searchResults.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-search-href]');
+            if (!button) return;
+            jumpToSearchResult(button.dataset.searchHref);
+        });
+
         window.addEventListener('keydown', (event) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            const typing = activeTag === 'input' || activeTag === 'textarea';
+
+            if (typing && event.key !== 'Escape') return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                hidePanels();
+                revealUi(1200);
+                return;
+            }
+
+            if (event.key === '/') {
+                event.preventDefault();
+                openSearchPanel();
+                return;
+            }
+
+            if (event.key.toLowerCase() === 'p') {
+                event.preventDefault();
+                const order = ['full', 'sanctified', 'archivist'];
+                const next = order[(order.indexOf(currentProtocolName) + 1) % order.length];
+                applyProtocol(next);
+                return;
+            }
+
+            if (event.key === '+' || event.key === '=') {
+                event.preventDefault();
+                adjustFont(4);
+                return;
+            }
+
+            if (event.key === '-' || event.key === '_') {
+                event.preventDefault();
+                adjustFont(-4);
+                return;
+            }
+
             if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
                 event.preventDefault();
                 goNext();
@@ -1203,7 +2058,10 @@
         });
 
         function occasionalAmbientFlicker() {
+            if (!currentProtocol().ambient) return;
             if (Math.random() > 0.35) return;
+            if (!ritualPanel.classList.contains('hidden') || !searchPanel.classList.contains('hidden')) return;
+
             screen.classList.remove('ambient-flicker');
             void screen.offsetWidth;
             screen.classList.add('ambient-flicker');
@@ -1212,6 +2070,8 @@
 
         setInterval(occasionalAmbientFlicker, 9500);
 
+        applyProtocol(currentProtocolName, { silent: true, keepFont: true });
+        revealUi(3200);
         wireGestureLayer();
     </script>
 </body>
