@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Auspex Codex EPUB Reader // Sanctified</title>
+    <title>Auspex Codex EPUB Reader</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
-    <!-- Static GitHub Pages compatible EPUB loading -->
+    <!-- Required for static GitHub Pages EPUB loading -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
@@ -18,18 +18,12 @@
             --iron: #1a1c1e;
             --amber: #ffb23a;
             --amber-hot: #ffd58a;
-            --amber-low: rgba(255, 178, 58, 0.58);
             --amber-dim: rgba(255, 178, 58, 0.16);
             --tallow: #f1e7c0;
+            --rust: #3d2b1f;
             --frame-border: #2a2d31;
             --black-glass: #070401;
-
-            --scanline-opacity: 0.42;
-            --smudge-opacity: 0.42;
-            --chrome-focus-opacity: 0.2;
-            --ambient-on: 1;
-            --screen-glow: 0 0 0 1px rgba(255, 178, 58, 0.11), 0 12px 28px rgba(0, 0, 0, 0.55);
-            --panel-bg: rgba(7, 4, 1, 0.94);
+            --slot-red: #3d1f1f;
         }
 
         * {
@@ -58,11 +52,6 @@
             padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
             cursor: crosshair;
             user-select: none;
-        }
-
-        button,
-        input {
-            font: inherit;
         }
 
         .svg-filters {
@@ -160,7 +149,9 @@
             grid-template-rows: auto 1fr auto;
             box-shadow:
                 inset 0 0 70px rgba(0, 0, 0, 1),
-                var(--screen-glow);
+                0 0 0 1px rgba(255, 178, 58, 0.11),
+                0 12px 28px rgba(0, 0, 0, 0.55);
+            filter: url(#tallow-smudge);
             transform-origin: center;
             touch-action: none;
         }
@@ -176,8 +167,6 @@
                 linear-gradient(90deg, rgba(255, 120, 0, 0.07), rgba(255, 205, 90, 0.025), rgba(255, 80, 0, 0.06));
             background-size: 100% 4px, 3px 100%;
             mix-blend-mode: screen;
-            opacity: var(--scanline-opacity);
-            transition: opacity 220ms ease;
         }
 
         .phosphor-screen::after {
@@ -202,7 +191,6 @@
             color: var(--amber);
             background: rgba(2, 8, 4, 0.88);
             backdrop-filter: blur(3px);
-            transition: opacity 260ms ease, transform 260ms ease;
         }
 
         .reader-header {
@@ -220,19 +208,6 @@
             opacity: 0.78;
         }
 
-        .phosphor-screen.reading-focus:not(.show-ui) .reader-header,
-        .phosphor-screen.reading-focus:not(.show-ui) .reader-footer {
-            opacity: var(--chrome-focus-opacity);
-        }
-
-        .phosphor-screen.reading-focus:not(.show-ui) .reader-header {
-            transform: translateY(-2px);
-        }
-
-        .phosphor-screen.reading-focus:not(.show-ui) .reader-footer {
-            transform: translateY(2px);
-        }
-
         .status-badge {
             font-size: clamp(8px, 2.5vw, 10px);
             text-transform: uppercase;
@@ -242,14 +217,14 @@
             animation: flicker 4s infinite;
         }
 
-        [data-protocol="archivist"] .status-badge {
-            animation: none;
-            text-shadow: none;
-        }
-
         .status-badge:last-child,
         .reader-footer span:last-child {
             text-align: right;
+            white-space: nowrap;
+        }
+
+        .reader-footer span:nth-child(2) {
+            text-align: center;
             white-space: nowrap;
         }
 
@@ -265,7 +240,6 @@
             inset: 0;
             z-index: 3;
             overflow: hidden;
-            background: var(--black-glass);
         }
 
         .placeholder-content {
@@ -405,9 +379,6 @@
                 radial-gradient(circle at 70% 82%, rgba(241, 231, 192, 0.052) 0%, transparent 30%);
             mix-blend-mode: overlay;
             pointer-events: none;
-            opacity: var(--smudge-opacity);
-            filter: url(#tallow-smudge);
-            transition: opacity 220ms ease;
         }
 
         .scanline-anim {
@@ -420,11 +391,6 @@
             background: linear-gradient(to bottom, transparent, rgba(255, 178, 58, 0.12), transparent);
             animation: scan 8s linear infinite;
             pointer-events: none;
-            opacity: var(--scanline-opacity);
-        }
-
-        [data-protocol="archivist"] .scanline-anim {
-            animation-duration: 16s;
         }
 
         .page-flash {
@@ -454,72 +420,15 @@
             transform: none !important;
         }
 
-        [data-protocol="archivist"].phosphor-screen.ambient-flicker {
-            animation: none;
-        }
-
         .phosphor-screen.bookmarked {
             animation: bookmarkPulse 580ms ease-out;
-        }
-
-        .purity-seal {
-            position: absolute;
-            top: 16px;
-            right: 18px;
-            z-index: 72;
-            width: 30px;
-            height: 42px;
-            display: grid;
-            place-items: start center;
-            color: var(--amber-hot);
-            text-shadow: 0 0 10px rgba(255, 178, 58, 0.7);
-            pointer-events: none;
-            opacity: 0.88;
-            transform-origin: top center;
-        }
-
-        .purity-seal::before {
-            content: "★";
-            position: relative;
-            z-index: 2;
-            display: grid;
-            place-items: center;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 1px solid rgba(255, 178, 58, 0.55);
-            background: rgba(61, 31, 31, 0.72);
-            box-shadow: 0 0 14px rgba(255, 178, 58, 0.18), inset 0 0 10px rgba(0, 0, 0, 0.55);
-            font-size: 11px;
-        }
-
-        .purity-seal::after {
-            content: "";
-            position: absolute;
-            top: 20px;
-            width: 16px;
-            height: 24px;
-            background:
-                linear-gradient(135deg, rgba(255, 178, 58, 0.42), rgba(61, 31, 31, 0.12)),
-                linear-gradient(45deg, transparent 0 35%, rgba(0, 0, 0, 0.28) 36% 48%, transparent 49%);
-            clip-path: polygon(0 0, 100% 0, 78% 100%, 50% 74%, 22% 100%);
-            opacity: 0.72;
-        }
-
-        .purity-seal.hidden {
-            opacity: 0;
-            transform: translateY(-8px) rotate(-3deg);
-        }
-
-        .purity-seal.pulse {
-            animation: sealSet 620ms ease-out;
         }
 
         .toast {
             position: absolute;
             left: 50%;
             bottom: 72px;
-            z-index: 120;
+            z-index: 80;
             width: calc(100% - 44px);
             transform: translateX(-50%) translateY(12px);
             padding: 12px 14px;
@@ -538,194 +447,6 @@
 
         .toast.visible {
             animation: toastRise 2.1s ease forwards;
-        }
-
-        .ritual-panel,
-        .search-panel,
-        .chapter-panel,
-        .library-panel {
-            position: absolute;
-            left: 14px;
-            right: 14px;
-            z-index: 96;
-            border: 1px solid rgba(255, 178, 58, 0.24);
-            background:
-                linear-gradient(135deg, rgba(255, 213, 138, 0.055), transparent 34%),
-                var(--panel-bg);
-            color: var(--amber);
-            box-shadow:
-                0 18px 46px rgba(0, 0, 0, 0.8),
-                inset 0 0 22px rgba(0, 0, 0, 0.78);
-            transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
-        }
-
-        .ritual-panel {
-            bottom: 14px;
-            padding: 14px;
-        }
-
-        .search-panel,
-        .chapter-panel,
-        .library-panel {
-            top: 14px;
-            max-height: calc(100% - 28px);
-            display: grid;
-            grid-template-rows: auto auto 1fr;
-            padding: 14px;
-        }
-
-        .ritual-panel.hidden,
-        .search-panel.hidden,
-        .chapter-panel.hidden,
-        .library-panel.hidden {
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(12px);
-            pointer-events: none;
-        }
-
-        .search-panel.hidden,
-        .chapter-panel.hidden,
-        .library-panel.hidden {
-            transform: translateY(-12px);
-        }
-
-        .panel-title {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin-bottom: 12px;
-            color: var(--amber-hot);
-            font-size: 10px;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            text-shadow: 0 0 8px rgba(255, 178, 58, 0.42);
-        }
-
-        .panel-title small {
-            color: rgba(255, 178, 58, 0.46);
-            font-size: 8px;
-            letter-spacing: 0.12em;
-        }
-
-        .protocol-strip,
-        .control-grid {
-            display: grid;
-            gap: 8px;
-        }
-
-        .protocol-strip {
-            grid-template-columns: repeat(3, 1fr);
-            margin-bottom: 10px;
-        }
-
-        .control-grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-
-        .ritual-button,
-        .protocol-chip,
-        .search-jump {
-            min-height: 38px;
-            border: 1px solid rgba(255, 178, 58, 0.22);
-            background:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.12)),
-                rgba(18, 13, 8, 0.86);
-            color: rgba(255, 213, 138, 0.76);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            font-size: 9px;
-            cursor: crosshair;
-            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.62);
-        }
-
-        .ritual-button:active,
-        .protocol-chip:active,
-        .search-jump:active {
-            transform: translateY(1px);
-        }
-
-        .ritual-button:hover,
-        .protocol-chip:hover,
-        .search-jump:hover,
-        .protocol-chip.active {
-            color: var(--amber-hot);
-            border-color: rgba(255, 178, 58, 0.48);
-            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.62), 0 0 18px rgba(255, 178, 58, 0.1);
-        }
-
-        .ritual-button[disabled] {
-            opacity: 0.35;
-            cursor: not-allowed;
-        }
-
-        .search-row {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .search-input {
-            width: 100%;
-            min-height: 40px;
-            border: 1px solid rgba(255, 178, 58, 0.26);
-            background: rgba(0, 0, 0, 0.64);
-            color: var(--amber-hot);
-            padding: 0 12px;
-            outline: none;
-            letter-spacing: 0.05em;
-            user-select: text;
-        }
-
-        .search-input::placeholder {
-            color: rgba(255, 178, 58, 0.38);
-        }
-
-        .search-results {
-            min-height: 80px;
-            overflow: auto;
-            overscroll-behavior: contain;
-            padding-right: 4px;
-            user-select: text;
-        }
-
-        .search-status {
-            color: rgba(255, 178, 58, 0.55);
-            font-size: 9px;
-            line-height: 1.55;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .search-card {
-            border: 1px solid rgba(255, 178, 58, 0.16);
-            background: rgba(0, 0, 0, 0.42);
-            padding: 10px;
-            margin-bottom: 8px;
-        }
-
-        .search-card-title {
-            color: var(--amber-hot);
-            font-size: 9px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .search-excerpt {
-            color: rgba(255, 213, 138, 0.78);
-            font-size: 10px;
-            line-height: 1.55;
-            margin-bottom: 10px;
-            text-align: left;
-            opacity: 1;
-        }
-
-        .search-jump {
-            width: 100%;
         }
 
         .dataslate-dock {
@@ -764,7 +485,6 @@
             box-shadow:
                 inset 0 9px 18px rgba(0, 0, 0, 0.78),
                 0 0 18px rgba(255, 178, 58, 0.04);
-            cursor: crosshair;
         }
 
         .dataslate-slot::before {
@@ -826,73 +546,228 @@
         }
 
 
-        .chapter-results,
-        .library-results {
-            min-height: 0;
-            overflow-y: auto;
-            padding-right: 4px;
+
+        .rune-button,
+        .footer-rune,
+        .library-close,
+        .library-action,
+        .library-delete {
+            appearance: none;
+            border: 1px solid rgba(255, 178, 58, 0.22);
+            background: rgba(7, 4, 1, 0.72);
+            color: var(--amber-hot);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            cursor: crosshair;
+            text-shadow: 0 0 8px rgba(255, 178, 58, 0.45);
+            box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.72), 0 0 12px rgba(255, 178, 58, 0.04);
+        }
+
+        .rune-button {
+            flex: 0 0 auto;
+            width: 34px;
+            height: 34px;
             display: grid;
-            gap: 8px;
+            place-items: center;
+            border-radius: 6px;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .rune-button:active,
+        .footer-rune:active,
+        .library-action:active,
+        .library-delete:active,
+        .library-close:active {
+            transform: translateY(1px);
+            color: #fff3c8;
+            border-color: rgba(255, 213, 138, 0.52);
+            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.84), 0 0 18px rgba(255, 178, 58, 0.14);
+        }
+
+        .footer-rune {
+            flex: 0 0 auto;
+            min-width: 28px;
+            height: 24px;
+            display: grid;
+            place-items: center;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .library-panel {
+            position: absolute;
+            inset: 0;
+            z-index: 75;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            background:
+                radial-gradient(circle at 50% 20%, rgba(255, 178, 58, 0.12), transparent 42%),
+                rgba(7, 4, 1, 0.94);
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 180ms ease, visibility 180ms ease;
+        }
+
+        .library-panel.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .library-card {
+            width: min(100%, 330px);
+            max-height: min(82dvh, 620px);
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 12px;
+            padding: 14px;
+            border: 1px solid rgba(255, 178, 58, 0.28);
+            background:
+                linear-gradient(135deg, rgba(255, 213, 138, 0.06), transparent 34%),
+                rgba(4, 3, 1, 0.96);
+            box-shadow:
+                0 0 0 1px rgba(0, 0, 0, 0.96),
+                0 20px 54px rgba(0, 0, 0, 0.88),
+                inset 0 0 28px rgba(0, 0, 0, 0.82);
+        }
+
+        .library-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 178, 58, 0.16);
+        }
+
+        .library-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            line-height: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--amber-hot);
+            text-shadow: 0 0 10px rgba(255, 178, 58, 0.42);
+        }
+
+        .library-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .library-list {
+            min-height: 120px;
+            overflow: auto;
+            display: grid;
+            gap: 10px;
+            padding-right: 2px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 178, 58, 0.36) rgba(0, 0, 0, 0.36);
+        }
+
+        .library-empty {
+            padding: 22px 12px;
+            border: 1px dashed rgba(255, 178, 58, 0.22);
+            color: rgba(255, 213, 138, 0.72);
+            font-size: 10px;
+            line-height: 1.65;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .library-item {
+            display: grid;
+            grid-template-columns: 48px 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 9px;
+            border: 1px solid rgba(255, 178, 58, 0.16);
+            background: rgba(0, 0, 0, 0.38);
+        }
+
+        .library-cover-thumb {
+            width: 48px;
+            height: 68px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border: 1px solid rgba(255, 178, 58, 0.22);
+            background:
+                radial-gradient(circle at 50% 40%, rgba(255, 178, 58, 0.12), transparent 56%),
+                rgba(0, 0, 0, 0.72);
+            color: rgba(255, 213, 138, 0.72);
+            font-size: 16px;
+        }
+
+        .library-cover-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: sepia(0.28) saturate(1.08) contrast(1.04);
+        }
+
+        .library-info {
+            min-width: 0;
+            display: grid;
+            gap: 5px;
+        }
+
+        .library-name {
+            color: var(--amber-hot);
+            font-size: 10px;
+            line-height: 1.35;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .library-meta {
+            color: rgba(255, 178, 58, 0.56);
+            font-size: 8px;
+            line-height: 1.45;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
         }
 
         .library-actions {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 6px;
         }
 
-        .chapter-card,
-        .library-card {
-            display: grid;
-            gap: 8px;
-            padding: 10px;
-            border: 1px solid rgba(255, 178, 58, 0.18);
-            background: rgba(0, 0, 0, 0.42);
-            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.48);
-        }
-
-        .chapter-card-title,
-        .library-card-title {
-            color: var(--amber-hot);
-            font-size: 9px;
-            line-height: 1.45;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-        }
-
-        .library-meta {
-            color: rgba(255, 178, 58, 0.52);
+        .library-action,
+        .library-delete {
+            min-width: 54px;
+            min-height: 26px;
+            padding: 5px 8px;
+            border-radius: 4px;
             font-size: 8px;
-            line-height: 1.5;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .library-card-actions {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 8px;
         }
 
         .library-delete {
-            min-width: 68px;
+            color: rgba(255, 213, 138, 0.62);
+            border-color: rgba(255, 178, 58, 0.12);
         }
 
-        .sentence-guard-active #sentenceButton {
-            color: var(--amber-hot);
-            border-color: rgba(255, 178, 58, 0.48);
-            box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.62), 0 0 18px rgba(255, 178, 58, 0.1);
-        }
-
-        @media (max-width: 380px) {
-            .control-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .library-actions {
-                grid-template-columns: 1fr;
-            }
+        .library-note {
+            color: rgba(255, 178, 58, 0.46);
+            border-top: 1px solid rgba(255, 178, 58, 0.12);
+            padding-top: 10px;
+            font-size: 8px;
+            line-height: 1.55;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
         }
 
         @keyframes flicker {
@@ -913,23 +788,23 @@
         }
 
         @keyframes boot {
-            from { opacity: 0.74; filter: brightness(1.55) contrast(1.08); }
-            45% { opacity: 1; filter: brightness(1.22) contrast(1.05); }
-            to { opacity: 1; filter: brightness(1) contrast(1); }
+            from { opacity: 0.74; filter: brightness(1.55) contrast(1.08) url(#tallow-smudge); }
+            45% { opacity: 1; filter: brightness(1.22) contrast(1.05) url(#tallow-smudge); }
+            to { opacity: 1; filter: brightness(1) contrast(1) url(#tallow-smudge); }
         }
 
         @keyframes softFlicker {
-            0% { filter: brightness(1) contrast(1); }
-            50% { filter: brightness(1.035) contrast(1.01); }
-            100% { filter: brightness(1) contrast(1); }
+            0% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+            50% { filter: brightness(1.035) contrast(1.01) url(#tallow-smudge); }
+            100% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
         }
 
         @keyframes ambientFlicker {
-            0% { filter: brightness(1) contrast(1); }
-            18% { filter: brightness(1.18) contrast(1.04); }
-            42% { filter: brightness(0.94) contrast(1.02); }
-            66% { filter: brightness(1.11) contrast(1.025); }
-            100% { filter: brightness(1) contrast(1); }
+            0% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
+            18% { filter: brightness(1.18) contrast(1.04) url(#tallow-smudge); }
+            42% { filter: brightness(0.94) contrast(1.02) url(#tallow-smudge); }
+            66% { filter: brightness(1.11) contrast(1.025) url(#tallow-smudge); }
+            100% { filter: brightness(1) contrast(1) url(#tallow-smudge); }
         }
 
         @keyframes pageFlash {
@@ -939,15 +814,9 @@
         }
 
         @keyframes bookmarkPulse {
-            0% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), var(--screen-glow); }
+            0% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.11); }
             35% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.48), 0 0 34px rgba(255, 178, 58, 0.24); }
-            100% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), var(--screen-glow); }
-        }
-
-        @keyframes sealSet {
-            0% { transform: translateY(-14px) rotate(-6deg); opacity: 0; }
-            45% { transform: translateY(2px) rotate(3deg); opacity: 1; }
-            100% { transform: translateY(0) rotate(0); opacity: 0.88; }
+            100% { box-shadow: inset 0 0 70px rgba(0, 0, 0, 1), 0 0 0 1px rgba(255, 178, 58, 0.11); }
         }
 
         @keyframes toastRise {
@@ -996,10 +865,6 @@
             .cover-panel img {
                 max-height: 48dvh;
             }
-
-            .control-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1029,10 +894,11 @@
         <div class="rail left"></div>
         <div class="rail right"></div>
 
-        <section class="phosphor-screen boot-seq show-ui" id="screen" aria-label="Reader screen" data-protocol="sanctified">
+        <section class="phosphor-screen boot-seq" id="screen" aria-label="Reader screen">
             <header class="reader-header">
                 <div class="status-badge" id="linkStatus">Link: Dormant // Awaiting Dataslate</div>
-                <div class="status-badge" id="lumenStatus">Protocol: Sanctified</div>
+                <div class="status-badge" id="lumenStatus">Lumen: 88%</div>
+                <button class="rune-button" id="libraryButton" type="button" aria-label="Open codex library" title="Open codex library">ᛟ</button>
             </header>
 
             <div class="screen-body" id="screenBody">
@@ -1044,10 +910,10 @@
                         Insert a sanctioned EPUB dataslate through the lower intake. The reader will awaken, bind the codex, and render the text in amber phosphor across the sanctified glass.
                     </p>
                     <p>
-                        Swipe left or right across the screen to turn pages. Swipe down to burn a bookmark sigil into local memory. Hold the glass to reveal the command rites.
+                        Swipe left or right across the screen to turn pages. Swipe down to burn a bookmark sigil into local memory. Tap the left or right half of the glass for quiet page movement, because apparently even ancient machine spirits appreciate ergonomics.
                     </p>
                     <p>
-                        The machine keeps the frame theatrical and the scripture readable. Invoke Full Auspex for atmosphere, Sanctified Reading for daily use, or Archivist Purity when legibility outranks ceremony.
+                        Amber scanlines remain active across the whole display. Page turns will give a soft phosphor blink, with only an occasional old-screen flicker. No migraine demon gets a lease on this chassis.
                     </p>
                 </article>
 
@@ -1058,75 +924,16 @@
                     <div class="cover-caption" id="coverCaption">Codex Cover Acquired</div>
                 </div>
 
-                <div class="purity-seal hidden" id="bookmarkSeal" aria-hidden="true"></div>
-
-                <section class="ritual-panel hidden" id="ritualPanel" aria-label="Command rites">
-                    <div class="panel-title">
-                        <span>Command Rites</span>
-                        <small>Hold glass / tap center</small>
+                <div class="library-panel hidden" id="libraryPanel" aria-hidden="true">
+                    <div class="library-card" role="dialog" aria-modal="true" aria-labelledby="libraryTitle">
+                        <div class="library-title-row">
+                            <div class="library-title" id="libraryTitle">Codex Library</div>
+                            <button class="library-close" id="libraryClose" type="button" aria-label="Close library">×</button>
+                        </div>
+                        <div class="library-list" id="libraryList"></div>
+                        <div class="library-note">Stored locally in this browser. Reopen the page later and the last codex can restore itself.</div>
                     </div>
-
-                    <div class="protocol-strip" aria-label="Reader comfort protocols">
-                        <button class="protocol-chip" type="button" data-protocol-target="full">Full Auspex</button>
-                        <button class="protocol-chip active" type="button" data-protocol-target="sanctified">Sanctified</button>
-                        <button class="protocol-chip" type="button" data-protocol-target="archivist">Archivist</button>
-                    </div>
-
-                    <div class="control-grid">
-                        <button class="ritual-button" type="button" id="libraryButton">Library</button>
-                        <button class="ritual-button" type="button" id="chapterButton">Scan Chapters</button>
-                        <button class="ritual-button" type="button" id="searchButton">Auspex Query</button>
-                        <button class="ritual-button" type="button" id="sentenceButton">Sentence Guard</button>
-                        <button class="ritual-button" type="button" id="fontDownButton">Scripture −</button>
-                        <button class="ritual-button" type="button" id="fontUpButton">Scripture +</button>
-                        <button class="ritual-button" type="button" id="bookmarkButton">Burn Sigil</button>
-                        <button class="ritual-button" type="button" id="returnButton" disabled>Return Vector</button>
-                        <button class="ritual-button" type="button" id="closeRitesButton">Seal Rites</button>
-                    </div>
-                </section>
-
-                <section class="search-panel hidden" id="searchPanel" aria-label="Auspex query panel">
-                    <div class="panel-title">
-                        <span>Auspex Query</span>
-                        <small>Chapter-level scan</small>
-                    </div>
-
-                    <form class="search-row" id="searchForm">
-                        <input class="search-input" id="searchInput" type="search" placeholder="Invoke term..." autocomplete="off" />
-                        <button class="ritual-button" type="submit">Scan</button>
-                    </form>
-
-                    <div class="search-results" id="searchResults">
-                        <div class="search-status">Enter a term. Results jump by canto and preserve a return vector.</div>
-                    </div>
-                </section>
-
-                <section class="chapter-panel hidden" id="chapterPanel" aria-label="Chapter scanner panel">
-                    <div class="panel-title">
-                        <span>Chapter Scanner</span>
-                        <small>TOC + fallback heading scan</small>
-                    </div>
-
-                    <div class="chapter-results" id="chapterResults">
-                        <div class="search-status">No scan performed. Bind a codex, then invoke chapter scanner.</div>
-                    </div>
-                </section>
-
-                <section class="library-panel hidden" id="libraryPanel" aria-label="Persistent library panel">
-                    <div class="panel-title">
-                        <span>Reliquary Library</span>
-                        <small id="storageStatus">Persistent storage: checking</small>
-                    </div>
-
-                    <div class="library-actions">
-                        <button class="ritual-button" type="button" id="persistButton">Request Persistence</button>
-                        <button class="ritual-button" type="button" id="refreshLibraryButton">Rescan Reliquary</button>
-                    </div>
-
-                    <div class="library-results" id="libraryResults">
-                        <div class="search-status">No stored dataslates found.</div>
-                    </div>
-                </section>
+                </div>
 
                 <div class="smudge-overlay"></div>
                 <div class="scanline-anim"></div>
@@ -1137,6 +944,8 @@
 
             <footer class="reader-footer">
                 <span id="locationStatus">LOC: 00.000.00</span>
+                <span id="roughPageStatus">-- / --</span>
+                <button class="footer-rune" id="bookmarkButton" type="button" aria-label="Bookmark current page" title="Tap to bookmark. Hold to jump to bookmark.">⌑</button>
                 <span id="pageStatus">NO CODEX</span>
             </footer>
         </section>
@@ -1148,8 +957,8 @@
             </label>
             <input id="epubInput" type="file" accept=".epub,application/epub+zip" />
             <div class="microtext">
-                <span>↓ Bookmark // Hold Rites</span>
-                <span>← / → Canto</span>
+                <span>Swipe ↓ / ⌑ Bookmark</span>
+                <span>ᛟ Library // ← / → Canto</span>
             </div>
         </section>
     </main>
@@ -1164,33 +973,17 @@
         const linkStatus = document.getElementById('linkStatus');
         const lumenStatus = document.getElementById('lumenStatus');
         const locationStatus = document.getElementById('locationStatus');
+        const roughPageStatus = document.getElementById('roughPageStatus');
         const pageStatus = document.getElementById('pageStatus');
         const slotText = document.getElementById('slotText');
         const coverPanel = document.getElementById('coverPanel');
         const coverImage = document.getElementById('coverImage');
         const coverCaption = document.getElementById('coverCaption');
-        const bookmarkSeal = document.getElementById('bookmarkSeal');
-        const ritualPanel = document.getElementById('ritualPanel');
-        const searchPanel = document.getElementById('searchPanel');
         const libraryButton = document.getElementById('libraryButton');
-        const chapterButton = document.getElementById('chapterButton');
-        const sentenceButton = document.getElementById('sentenceButton');
-        const searchButton = document.getElementById('searchButton');
-        const searchInput = document.getElementById('searchInput');
-        const searchForm = document.getElementById('searchForm');
-        const searchResults = document.getElementById('searchResults');
-        const chapterPanel = document.getElementById('chapterPanel');
-        const chapterResults = document.getElementById('chapterResults');
         const libraryPanel = document.getElementById('libraryPanel');
-        const libraryResults = document.getElementById('libraryResults');
-        const storageStatus = document.getElementById('storageStatus');
-        const persistButton = document.getElementById('persistButton');
-        const refreshLibraryButton = document.getElementById('refreshLibraryButton');
-        const fontDownButton = document.getElementById('fontDownButton');
-        const fontUpButton = document.getElementById('fontUpButton');
+        const libraryClose = document.getElementById('libraryClose');
+        const libraryList = document.getElementById('libraryList');
         const bookmarkButton = document.getElementById('bookmarkButton');
-        const returnButton = document.getElementById('returnButton');
-        const closeRitesButton = document.getElementById('closeRitesButton');
 
         let book = null;
         let rendition = null;
@@ -1203,223 +996,313 @@
         let isPointerDown = false;
         let locationsReady = false;
         let resizeTimer = null;
-        let uiTimer = null;
-        let longPressTimer = null;
-        let longPressTriggered = false;
-        let returnCfi = null;
-        let activeSearchNonce = 0;
-        let activeChapterNonce = 0;
-        let currentBookRecordId = null;
+        let totalWordCount = 0;
+        let totalRoughPages = 0;
+        let currentBookTitle = '';
+        let libraryProgressTimer = null;
+        let bookmarkHoldTimer = null;
+        let bookmarkHoldTriggered = false;
 
-        const DB_NAME = 'auspex-codex-library';
-        const DB_VERSION = 1;
-        const BOOK_STORE = 'books';
+        const WORDS_PER_ROUGH_PAGE = 250;
+        const LIBRARY_DB_NAME = 'auspex-codex-library';
+        const LIBRARY_DB_VERSION = 1;
+        const LIBRARY_STORE = 'books';
+        const LIBRARY_LAST_KEY = 'auspex-library::last-book';
+        let libraryDbPromise = null;
 
-        let sentenceGuardEnabled = localStorage.getItem('auspex::sentenceGuard') === 'true';
+        function openLibraryDb() {
+            if (libraryDbPromise) return libraryDbPromise;
 
-        const protocols = {
-            full: {
-                label: 'Full Auspex',
-                status: 'Protocol: Full Auspex',
-                fontSize: 112,
-                lineHeight: '1.72',
-                padding: 'clamp(22px, 7vw, 40px) clamp(20px, 7vw, 38px)',
-                paragraphGlow: '0 0 5px rgba(255, 178, 58, 0.28)',
-                headingGlow: '0 0 10px rgba(255, 178, 58, 0.5)',
-                scanline: 0.78,
-                smudge: 0.72,
-                focusOpacity: 0.28,
-                ambient: true,
-                justify: 'justify'
-            },
-            sanctified: {
-                label: 'Sanctified Reading',
-                status: 'Protocol: Sanctified',
-                fontSize: 116,
-                lineHeight: '1.76',
-                padding: 'clamp(24px, 7vw, 42px) clamp(21px, 7vw, 40px)',
-                paragraphGlow: '0 0 3px rgba(255, 178, 58, 0.16)',
-                headingGlow: '0 0 7px rgba(255, 178, 58, 0.32)',
-                scanline: 0.36,
-                smudge: 0.32,
-                focusOpacity: 0.18,
-                ambient: false,
-                justify: 'justify'
-            },
-            archivist: {
-                label: 'Archivist Purity',
-                status: 'Protocol: Archivist',
-                fontSize: 120,
-                lineHeight: '1.86',
-                padding: 'clamp(26px, 8vw, 46px) clamp(22px, 7vw, 42px)',
-                paragraphGlow: 'none',
-                headingGlow: 'none',
-                scanline: 0.12,
-                smudge: 0.12,
-                focusOpacity: 0.12,
-                ambient: false,
-                justify: 'left'
-            }
-        };
-
-        let currentProtocolName = localStorage.getItem('auspex::protocol') || 'sanctified';
-        if (!protocols[currentProtocolName]) currentProtocolName = 'sanctified';
-
-        let fontPercent = Number.parseInt(localStorage.getItem('auspex::fontPercent') || protocols[currentProtocolName].fontSize, 10);
-        if (!Number.isFinite(fontPercent)) fontPercent = protocols[currentProtocolName].fontSize;
-
-        function currentProtocol() {
-            return protocols[currentProtocolName] || protocols.sanctified;
-        }
-
-        function makeReaderTheme() {
-            const protocol = currentProtocol();
-            const sentenceBreakRule = sentenceGuardEnabled ? 'avoid' : 'auto';
-            const sentenceWidows = sentenceGuardEnabled ? '3' : '2';
-            const sentenceOrphans = sentenceGuardEnabled ? '3' : '2';
-
-            return {
-                body: {
-                    color: '#ffb23a',
-                    background: '#070401',
-                    'font-family': 'Georgia, "Times New Roman", serif',
-                    'line-height': protocol.lineHeight,
-                    'padding': '0 !important',
-                    'overflow-wrap': 'break-word',
-                    'hyphens': sentenceGuardEnabled ? 'none' : 'auto'
-                },
-                p: {
-                    color: '#ffb23a',
-                    'text-align': protocol.justify,
-                    'text-shadow': protocol.paragraphGlow,
-                    'orphans': sentenceOrphans,
-                    'widows': sentenceWidows,
-                    'break-inside': sentenceBreakRule,
-                    'page-break-inside': sentenceBreakRule
-                },
-                li: {
-                    'orphans': sentenceOrphans,
-                    'widows': sentenceWidows,
-                    'break-inside': sentenceBreakRule,
-                    'page-break-inside': sentenceBreakRule
-                },
-                blockquote: {
-                    'orphans': sentenceOrphans,
-                    'widows': sentenceWidows,
-                    'break-inside': sentenceBreakRule,
-                    'page-break-inside': sentenceBreakRule
-                },
-                h1: {
-                    color: '#ffd58a',
-                    'font-family': 'Georgia, "Times New Roman", serif',
-                    'text-shadow': protocol.headingGlow,
-                    'line-height': '1.2',
-                    'break-after': 'avoid',
-                    'page-break-after': 'avoid'
-                },
-                h2: {
-                    color: '#ffd58a',
-                    'font-family': 'Georgia, "Times New Roman", serif',
-                    'text-shadow': protocol.headingGlow,
-                    'line-height': '1.25',
-                    'break-after': 'avoid',
-                    'page-break-after': 'avoid'
-                },
-                h3: {
-                    color: '#ffd58a',
-                    'font-family': 'Georgia, "Times New Roman", serif',
-                    'break-after': 'avoid',
-                    'page-break-after': 'avoid'
-                },
-                a: {
-                    color: '#ffd58a'
-                },
-                img: {
-                    'max-width': '100%',
-                    height: 'auto',
-                    'break-inside': 'avoid',
-                    'page-break-inside': 'avoid'
-                },
-                '::selection': {
-                    background: 'rgba(255, 178, 58, 0.28)'
+            libraryDbPromise = new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error('IndexedDB unavailable'));
+                    return;
                 }
-            };
-        }
-        function applyProtocol(name, options = {}) {
-            if (!protocols[name]) name = 'sanctified';
-            currentProtocolName = name;
-            localStorage.setItem('auspex::protocol', currentProtocolName);
 
-            const protocol = currentProtocol();
-            screen.dataset.protocol = currentProtocolName;
-            document.documentElement.style.setProperty('--scanline-opacity', protocol.scanline);
-            document.documentElement.style.setProperty('--smudge-opacity', protocol.smudge);
-            document.documentElement.style.setProperty('--chrome-focus-opacity', protocol.focusOpacity);
+                const request = indexedDB.open(LIBRARY_DB_NAME, LIBRARY_DB_VERSION);
 
-            if (!options.keepFont) {
-                fontPercent = protocol.fontSize;
-                localStorage.setItem('auspex::fontPercent', String(fontPercent));
-            }
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(LIBRARY_STORE)) {
+                        const store = db.createObjectStore(LIBRARY_STORE, { keyPath: 'id' });
+                        store.createIndex('lastOpened', 'lastOpened', { unique: false });
+                        store.createIndex('title', 'title', { unique: false });
+                    }
+                };
 
-            if (rendition) {
-                rendition.themes.register('auspexAmber', makeReaderTheme());
-                rendition.themes.select('auspexAmber');
-                rendition.themes.fontSize(`${fontPercent}%`);
-                rendition.themes.override('padding', protocol.padding);
-            }
-
-            lumenStatus.textContent = protocol.status;
-
-            document.querySelectorAll('.protocol-chip').forEach(chip => {
-                chip.classList.toggle('active', chip.dataset.protocolTarget === currentProtocolName);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('IndexedDB failed'));
+                request.onblocked = () => reject(new Error('IndexedDB blocked by another tab'));
             });
 
-            if (!options.silent) {
-                showToast(`${protocol.label} Protocol Engaged`);
-            }
+            return libraryDbPromise;
         }
 
-        function updateSentenceGuardButton() {
-            sentenceButton.textContent = sentenceGuardEnabled ? 'Sentence Guard On' : 'Sentence Guard';
-            screen.classList.toggle('sentence-guard-active', sentenceGuardEnabled);
-        }
+        async function withLibraryStore(mode, callback) {
+            const db = await openLibraryDb();
 
-        function toggleSentenceGuard() {
-            sentenceGuardEnabled = !sentenceGuardEnabled;
-            localStorage.setItem('auspex::sentenceGuard', String(sentenceGuardEnabled));
-            updateSentenceGuardButton();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(LIBRARY_STORE, mode);
+                const store = tx.objectStore(LIBRARY_STORE);
+                let result;
 
-            if (rendition) {
-                const cfi = currentCfi();
-                rendition.themes.register('auspexAmber', makeReaderTheme());
-                rendition.themes.select('auspexAmber');
-                rendition.themes.fontSize(`${fontPercent}%`);
-                rendition.themes.override('padding', currentProtocol().padding);
+                tx.oncomplete = () => resolve(result);
+                tx.onerror = () => reject(tx.error || new Error('Library transaction failed'));
+                tx.onabort = () => reject(tx.error || new Error('Library transaction aborted'));
 
-                if (cfi) {
-                    rendition.display(cfi).catch(() => {
-                        // Reflow is best-effort; reading can continue without drama.
-                    });
+                try {
+                    result = callback(store);
+                } catch (error) {
+                    tx.abort();
+                    reject(error);
                 }
-            }
-
-            showToast(sentenceGuardEnabled
-                ? 'Sentence Guard engaged. Paragraph breaks are protected where EPUB layout permits.'
-                : 'Sentence Guard released.');
+            });
         }
 
-        function adjustFont(delta) {
-            fontPercent = Math.max(88, Math.min(148, fontPercent + delta));
-            localStorage.setItem('auspex::fontPercent', String(fontPercent));
+        function idbRequest(request) {
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('IndexedDB request failed'));
+            });
+        }
 
-            if (rendition) {
-                rendition.themes.fontSize(`${fontPercent}%`);
-                if (rendition.resize) rendition.resize();
+        async function getBookRecord(id) {
+            if (!id) return null;
+            return withLibraryStore('readonly', store => idbRequest(store.get(id)));
+        }
+
+        async function getAllBookRecords() {
+            const records = await withLibraryStore('readonly', store => idbRequest(store.getAll()));
+            return (records || []).sort((a, b) => (b.lastOpened || b.updatedAt || 0) - (a.lastOpened || a.updatedAt || 0));
+        }
+
+        async function putBookRecord(record) {
+            return withLibraryStore('readwrite', store => idbRequest(store.put(record)));
+        }
+
+        async function deleteBookRecord(id) {
+            return withLibraryStore('readwrite', store => idbRequest(store.delete(id)));
+        }
+
+        function cloneBuffer(buffer) {
+            return buffer && typeof buffer.slice === 'function' ? buffer.slice(0) : buffer;
+        }
+
+        function blobToDataUrl(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error || new Error('Cover read failed'));
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function saveBookToLibrary(file, buffer, title) {
+            if (!currentBookKey || !buffer) return;
+
+            try {
+                const existing = await getBookRecord(currentBookKey);
+                const coverDataUrl = existing && existing.coverDataUrl
+                    ? existing.coverDataUrl
+                    : await extractCoverDataUrlFromEpubBuffer(buffer).catch(() => null);
+
+                const now = Date.now();
+                const record = {
+                    ...(existing || {}),
+                    id: currentBookKey,
+                    title: title || (file && file.name ? file.name.replace(/\.epub$/i, '') : 'Untitled Codex'),
+                    fileName: file && file.name ? file.name : (existing && existing.fileName) || 'stored-codex.epub',
+                    size: file && typeof file.size === 'number' ? file.size : (existing && existing.size) || 0,
+                    lastModified: file && typeof file.lastModified === 'number' ? file.lastModified : (existing && existing.lastModified) || now,
+                    buffer: cloneBuffer(buffer),
+                    coverDataUrl,
+                    totalWordCount,
+                    totalRoughPages,
+                    updatedAt: now,
+                    lastOpened: now,
+                    lastCfi: localStorage.getItem(`${currentBookKey}::last`) || (existing && existing.lastCfi) || null,
+                    bookmarkCfi: localStorage.getItem(`${currentBookKey}::bookmark`) || (existing && existing.bookmarkCfi) || null
+                };
+
+                await putBookRecord(record);
+                localStorage.setItem(LIBRARY_LAST_KEY, currentBookKey);
+            } catch (error) {
+                console.warn('Library save failed:', error);
+                showToast('Codex reads, but persistent storage failed. Browser said no. Rude.');
+            }
+        }
+
+        function queueLibraryProgress(cfi, options = {}) {
+            if (!currentBookKey || !cfi) return;
+
+            clearTimeout(libraryProgressTimer);
+            libraryProgressTimer = setTimeout(async () => {
+                try {
+                    const existing = await getBookRecord(currentBookKey);
+                    if (!existing) return;
+
+                    const percentage = locationsReady && book && book.locations
+                        ? Math.max(0, Math.min(1, book.locations.percentageFromCfi(cfi)))
+                        : existing.progressPercent || 0;
+
+                    await putBookRecord({
+                        ...existing,
+                        lastCfi: cfi,
+                        bookmarkCfi: options.bookmark ? cfi : existing.bookmarkCfi || null,
+                        progressPercent: percentage,
+                        totalWordCount,
+                        totalRoughPages,
+                        updatedAt: Date.now(),
+                        lastOpened: Date.now()
+                    });
+
+                    localStorage.setItem(LIBRARY_LAST_KEY, currentBookKey);
+                } catch (error) {
+                    console.warn('Progress persistence failed:', error);
+                }
+            }, options.bookmark ? 0 : 160);
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function libraryProgressText(record) {
+            const totalPages = record.totalRoughPages || 0;
+            const currentPage = totalPages && Number.isFinite(record.progressPercent)
+                ? Math.max(1, Math.min(totalPages, Math.ceil(record.progressPercent * totalPages)))
+                : 0;
+            const pageText = totalPages ? `${formatInteger(currentPage || 1)} / ${formatInteger(totalPages)}` : '-- / --';
+            const bookmarkText = record.bookmarkCfi ? ' // Bookmark Set' : ' // No Bookmark';
+            return `${pageText}${bookmarkText}`;
+        }
+
+        async function renderLibraryList() {
+            try {
+                const records = await getAllBookRecords();
+
+                if (!records.length) {
+                    libraryList.innerHTML = '<div class="library-empty">No stored codices yet. Load an EPUB once and it will be sealed here for later.</div>';
+                    return;
+                }
+
+                libraryList.innerHTML = records.map(record => `
+                    <div class="library-item" data-book-id="${escapeHtml(record.id)}">
+                        <div class="library-cover-thumb">${record.coverDataUrl ? `<img src="${escapeHtml(record.coverDataUrl)}" alt="" />` : '▣'}</div>
+                        <div class="library-info">
+                            <div class="library-name">${escapeHtml(record.title || record.fileName || 'Untitled Codex')}</div>
+                            <div class="library-meta">${escapeHtml(libraryProgressText(record))}</div>
+                        </div>
+                        <div class="library-actions">
+                            <button class="library-action" type="button" data-action="open">Open</button>
+                            <button class="library-delete" type="button" data-action="delete">Purge</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.warn('Library render failed:', error);
+                libraryList.innerHTML = '<div class="library-empty">Library failed to open. The vault is sulking.</div>';
+            }
+        }
+
+        async function openLibraryPanel() {
+            await renderLibraryList();
+            libraryPanel.classList.remove('hidden');
+            libraryPanel.setAttribute('aria-hidden', 'false');
+            hideCover();
+        }
+
+        function closeLibraryPanel() {
+            libraryPanel.classList.add('hidden');
+            libraryPanel.setAttribute('aria-hidden', 'true');
+        }
+
+        async function loadStoredBook(record) {
+            if (!record || !record.buffer) {
+                showToast('Stored codex missing its book data. The vault coughed up dust.');
+                return;
             }
 
-            revealUi(3200);
-            showToast(`Scripture Scale: ${fontPercent}%`);
+            closeLibraryPanel();
+            const file = new File([record.buffer], record.fileName || `${record.title || 'stored-codex'}.epub`, {
+                type: 'application/epub+zip',
+                lastModified: record.lastModified || Date.now()
+            });
+
+            await loadEpub(file, {
+                buffer: record.buffer,
+                bookKey: record.id,
+                storedTitle: record.title,
+                skipLibrarySave: true,
+                fromLibrary: true
+            });
         }
+
+        async function jumpToBookmark() {
+            if (!rendition || !currentBookKey) {
+                showToast('No codex loaded. Bookmark rune has nothing to bite.');
+                return;
+            }
+
+            const savedBookmark = localStorage.getItem(`${currentBookKey}::bookmark`);
+            if (!savedBookmark) {
+                showToast('No bookmark sigil saved for this codex.');
+                return;
+            }
+
+            pulseTurn();
+            await rendition.display(savedBookmark);
+            showToast('Bookmark Sigil Recalled');
+        }
+
+        async function resumeLastStoredBook() {
+            const lastBookId = localStorage.getItem(LIBRARY_LAST_KEY);
+            if (!lastBookId) return;
+
+            try {
+                const record = await getBookRecord(lastBookId);
+                if (!record) return;
+                await loadStoredBook(record);
+            } catch (error) {
+                console.warn('Auto-resume failed:', error);
+            }
+        }
+
+        const readerTheme = {
+            body: {
+                color: '#ffb23a',
+                background: '#070401',
+                'font-family': 'Georgia, "Times New Roman", serif',
+                'line-height': '1.72',
+                'padding': '0 !important',
+                'overflow-wrap': 'break-word'
+            },
+            p: {
+                color: '#ffb23a',
+                'text-align': 'justify',
+                'text-shadow': '0 0 4px rgba(255, 178, 58, 0.22)'
+            },
+            h1: {
+                color: '#ffd58a',
+                'font-family': 'Georgia, "Times New Roman", serif',
+                'text-shadow': '0 0 8px rgba(255, 178, 58, 0.4)'
+            },
+            h2: {
+                color: '#ffd58a',
+                'font-family': 'Georgia, "Times New Roman", serif'
+            },
+            a: {
+                color: '#ffd58a'
+            },
+            '::selection': {
+                background: 'rgba(255, 178, 58, 0.28)'
+            }
+        };
 
         function showToast(message) {
             toast.textContent = message;
@@ -1455,15 +1338,108 @@
             void screen.offsetWidth;
             screen.classList.add('bookmarked');
             window.setTimeout(() => screen.classList.remove('bookmarked'), 620);
-
-            bookmarkSeal.classList.remove('hidden', 'pulse');
-            void bookmarkSeal.offsetWidth;
-            bookmarkSeal.classList.add('pulse');
         }
 
         function formatPercent(value) {
             if (!Number.isFinite(value)) return '00.0%';
             return `${Math.max(0, Math.min(100, value * 100)).toFixed(1)}%`;
+        }
+
+        function formatInteger(value) {
+            return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        }
+
+        function countWordsInText(text) {
+            const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
+            if (!cleaned) return 0;
+
+            const words = cleaned.match(/[\p{L}\p{N}]+(?:[’'\-][\p{L}\p{N}]+)*/gu);
+            return words ? words.length : 0;
+        }
+
+        function textFromHtmlDocument(htmlText) {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(htmlText, 'text/html');
+            htmlDoc.querySelectorAll('script, style, noscript, svg, nav, head').forEach(node => node.remove());
+            return htmlDoc.body ? htmlDoc.body.textContent : htmlDoc.documentElement.textContent;
+        }
+
+        function updateRoughPageStatus(cfi) {
+            if (!totalRoughPages) {
+                roughPageStatus.textContent = '-- / --';
+                return;
+            }
+
+            if (locationsReady && book && book.locations && cfi) {
+                const percentage = Math.max(0, Math.min(1, book.locations.percentageFromCfi(cfi)));
+                const currentRoughPage = Math.max(1, Math.min(totalRoughPages, Math.ceil(percentage * totalRoughPages)));
+                roughPageStatus.textContent = `${formatInteger(currentRoughPage)} / ${formatInteger(totalRoughPages)}`;
+                return;
+            }
+
+            roughPageStatus.textContent = `-- / ${formatInteger(totalRoughPages)}`;
+        }
+
+        async function estimateWordCountFromEpubBuffer(buffer) {
+            if (!window.JSZip) return 0;
+
+            const zip = await JSZip.loadAsync(buffer);
+            const parser = new DOMParser();
+
+            const containerFile = findZipFile(zip, 'META-INF/container.xml');
+            if (!containerFile) return 0;
+
+            const containerText = await containerFile.async('text');
+            const containerXml = parser.parseFromString(containerText, 'application/xml');
+            const rootfile = xmlOne(containerXml, 'rootfile');
+            const opfPath = rootfile ? rootfile.getAttribute('full-path') : null;
+
+            if (!opfPath) return 0;
+
+            const opfFile = findZipFile(zip, opfPath);
+            if (!opfFile) return 0;
+
+            const opfText = await opfFile.async('text');
+            const opfXml = parser.parseFromString(opfText, 'application/xml');
+            const manifestItems = xmlAll(opfXml, 'item');
+            const spineItems = xmlAll(opfXml, 'itemref');
+            const manifestById = new Map(manifestItems.map(item => [item.getAttribute('id'), item]));
+            const countedPaths = new Set();
+            let wordCount = 0;
+
+            async function countManifestItem(item) {
+                if (!item) return;
+
+                const href = item.getAttribute('href');
+                const mediaType = (item.getAttribute('media-type') || '').toLowerCase();
+                if (!href) return;
+
+                const isReadableDocument = mediaType.includes('xhtml') || mediaType.includes('html') || /\.(xhtml|html|htm)$/i.test(href);
+                if (!isReadableDocument) return;
+
+                const fullPath = resolvePath(opfPath, href);
+                const normalizedPath = normalizeZipPath(fullPath);
+                if (countedPaths.has(normalizedPath)) return;
+
+                const contentFile = findZipFile(zip, fullPath);
+                if (!contentFile) return;
+
+                countedPaths.add(normalizedPath);
+                const htmlText = await contentFile.async('text');
+                wordCount += countWordsInText(textFromHtmlDocument(htmlText));
+            }
+
+            if (spineItems.length) {
+                for (const spineItem of spineItems) {
+                    await countManifestItem(manifestById.get(spineItem.getAttribute('idref')));
+                }
+            } else {
+                for (const item of manifestItems) {
+                    await countManifestItem(item);
+                }
+            }
+
+            return wordCount;
         }
 
         function getBookKey(file) {
@@ -1523,7 +1499,7 @@
             }) || null;
         }
 
-        async function extractCoverUrlFromEpubBuffer(buffer) {
+        async function extractCoverBlobFromEpubBuffer(buffer) {
             if (!window.JSZip) return null;
 
             const zip = await JSZip.loadAsync(buffer);
@@ -1588,8 +1564,17 @@
 
             if (!coverFile) return null;
 
-            const blob = await coverFile.async('blob');
-            return URL.createObjectURL(blob);
+            return coverFile.async('blob');
+        }
+
+        async function extractCoverUrlFromEpubBuffer(buffer) {
+            const blob = await extractCoverBlobFromEpubBuffer(buffer);
+            return blob ? URL.createObjectURL(blob) : null;
+        }
+
+        async function extractCoverDataUrlFromEpubBuffer(buffer) {
+            const blob = await extractCoverBlobFromEpubBuffer(buffer);
+            return blob ? blobToDataUrl(blob) : null;
         }
 
         async function showCoverFromBuffer(buffer, title) {
@@ -1612,7 +1597,6 @@
                 window.clearTimeout(coverTimer);
                 coverTimer = window.setTimeout(() => {
                     coverPanel.classList.add('hidden');
-                    enterReadingFocus();
                 }, 2800);
             } catch (error) {
                 console.warn('Cover extraction failed:', error);
@@ -1621,769 +1605,84 @@
         }
 
         function updateLocation(location) {
-            if (!location || !location.start || !currentBookKey) return;
+            if (!location || !location.start) return;
 
             const cfi = location.start.cfi;
+            if (!currentBookKey || !cfi) return;
+
             localStorage.setItem(`${currentBookKey}::last`, cfi);
+            queueLibraryProgress(cfi);
 
             const spineIndex = typeof location.start.index === 'number' ? location.start.index + 1 : 1;
             const totalSpine = book && book.spine && book.spine.length ? book.spine.length : '?';
-            locationStatus.textContent = `CANTO: ${String(spineIndex).padStart(2, '0')} / ${totalSpine}`;
+            locationStatus.textContent = `LOC: ${String(spineIndex).padStart(2, '0')} / ${totalSpine}`;
 
             if (locationsReady && book.locations && cfi) {
-                pageStatus.textContent = `RITE PROGRESS: ${formatPercent(book.locations.percentageFromCfi(cfi))}`;
+                pageStatus.textContent = `PROGRESS: ${formatPercent(book.locations.percentageFromCfi(cfi))}`;
             } else {
                 pageStatus.textContent = 'CALIBRATING';
             }
 
-            const bookmark = localStorage.getItem(`${currentBookKey}::bookmark`);
-            bookmarkSeal.classList.toggle('hidden', !isBookmarkOnCurrentPage(bookmark, location));
-        }
-
-        function isBookmarkOnCurrentPage(bookmarkCfi, location) {
-            if (!bookmarkCfi || !location || !location.start || !location.start.cfi) return false;
-
-            const startCfi = location.start.cfi;
-            const endCfi = location.end && location.end.cfi ? location.end.cfi : startCfi;
-
-            if (bookmarkCfi === startCfi || bookmarkCfi === endCfi) return true;
-
-            if (locationsReady && book && book.locations) {
-                try {
-                    const mark = book.locations.percentageFromCfi(bookmarkCfi);
-                    const start = book.locations.percentageFromCfi(startCfi);
-                    const end = book.locations.percentageFromCfi(endCfi);
-                    const low = Math.min(start, end);
-                    const high = Math.max(start, end);
-                    const tolerance = 0.0008;
-
-                    return Number.isFinite(mark)
-                        && Number.isFinite(low)
-                        && Number.isFinite(high)
-                        && mark >= low - tolerance
-                        && mark <= high + tolerance;
-                } catch (error) {
-                    // Fall through to exact matching only.
-                }
-            }
-
-            return false;
-        }
-        function currentCfi() {
-            if (!rendition) return null;
-            const location = rendition.currentLocation();
-            return location && location.start && location.start.cfi ? location.start.cfi : null;
+            updateRoughPageStatus(cfi);
         }
 
         async function saveBookmark() {
             if (!rendition || !currentBookKey) {
-                showToast('No codex loaded. Insert dataslate first.');
+                showToast('No codex loaded. Insert dataslate first. Obviously.');
                 return;
             }
 
             const location = rendition.currentLocation();
-            const cfi = location && location.start && location.start.cfi ? location.start.cfi : null;
-
-            if (!cfi) {
+            if (!location || !location.start || !location.start.cfi) {
                 showToast('Bookmark failed. Machine spirit is being dramatic.');
                 return;
             }
 
-            localStorage.setItem(`${currentBookKey}::bookmark`, cfi);
-            localStorage.setItem(`${currentBookKey}::last`, cfi);
-            localStorage.setItem(`${currentBookKey}::bookmarkSpine`, String(location.start.index ?? 0));
-            bookmarkSeal.classList.toggle('hidden', !isBookmarkOnCurrentPage(cfi, location));
+            localStorage.setItem(`${currentBookKey}::bookmark`, location.start.cfi);
+            localStorage.setItem(`${currentBookKey}::last`, location.start.cfi);
+            queueLibraryProgress(location.start.cfi, { bookmark: true });
             pulseBookmark();
-            showToast('Bookmark Sigil Burned Into This Page');
-        }
-        function enterReadingFocus() {
-            if (!ritualPanel.classList.contains('hidden') || !searchPanel.classList.contains('hidden') || !chapterPanel.classList.contains('hidden') || !libraryPanel.classList.contains('hidden')) return;
-            screen.classList.add('reading-focus');
-            screen.classList.remove('show-ui');
-            clearTimeout(uiTimer);
-        }
-
-        function revealUi(duration = 3200) {
-            screen.classList.add('show-ui');
-            screen.classList.remove('reading-focus');
-            clearTimeout(uiTimer);
-            if (duration) {
-                uiTimer = window.setTimeout(enterReadingFocus, duration);
-            }
-        }
-
-        function hideRitualPanel() {
-            ritualPanel.classList.add('hidden');
-        }
-
-        function showRitualPanel() {
-            hideCover();
-            searchPanel.classList.add('hidden');
-            ritualPanel.classList.remove('hidden');
-            revealUi(0);
-        }
-
-        function toggleRitualPanel() {
-            if (ritualPanel.classList.contains('hidden')) {
-                showRitualPanel();
-            } else {
-                hideRitualPanel();
-                revealUi(1800);
-            }
-        }
-
-        function hidePanels() {
-            hideRitualPanel();
-            searchPanel.classList.add('hidden');
-            chapterPanel.classList.add('hidden');
-            libraryPanel.classList.add('hidden');
-        }
-
-        function idbRequest(request) {
-            return new Promise((resolve, reject) => {
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        function openLibraryDb() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-                request.onupgradeneeded = () => {
-                    const db = request.result;
-                    if (!db.objectStoreNames.contains(BOOK_STORE)) {
-                        const store = db.createObjectStore(BOOK_STORE, { keyPath: 'id' });
-                        store.createIndex('lastOpenedAt', 'lastOpenedAt');
-                        store.createIndex('title', 'title');
-                    }
-                };
-
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async function withBookStore(mode, callback) {
-            const db = await openLibraryDb();
-
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(BOOK_STORE, mode);
-                const store = tx.objectStore(BOOK_STORE);
-                let callbackResult;
-
-                tx.oncomplete = () => {
-                    db.close();
-                    resolve(callbackResult);
-                };
-
-                tx.onerror = () => {
-                    const error = tx.error;
-                    db.close();
-                    reject(error);
-                };
-
-                try {
-                    callbackResult = callback(store);
-                } catch (error) {
-                    db.close();
-                    reject(error);
-                }
-            });
-        }
-
-        async function requestPersistentStorage() {
-            if (!navigator.storage || !navigator.storage.persist) {
-                storageStatus.textContent = 'Persistence API unavailable';
-                return false;
-            }
-
-            try {
-                const granted = await navigator.storage.persist();
-                storageStatus.textContent = granted ? 'Persistent storage: granted' : 'Persistent storage: not granted';
-                return granted;
-            } catch (error) {
-                storageStatus.textContent = 'Persistent storage: failed';
-                return false;
-            }
-        }
-
-        async function updateStorageStatus() {
-            let persisted = false;
-            try {
-                persisted = !!(navigator.storage && navigator.storage.persisted && await navigator.storage.persisted());
-            } catch (error) {
-                persisted = false;
-            }
-
-            let quotaText = '';
-            try {
-                if (navigator.storage && navigator.storage.estimate) {
-                    const estimate = await navigator.storage.estimate();
-                    const usage = estimate.usage || 0;
-                    const quota = estimate.quota || 0;
-                    if (quota) quotaText = ` // ${(usage / 1048576).toFixed(1)} MB / ${(quota / 1048576).toFixed(0)} MB`;
-                }
-            } catch (error) {
-                quotaText = '';
-            }
-
-            storageStatus.textContent = persisted ? `Persistent storage: granted${quotaText}` : `Persistent storage: best effort${quotaText}`;
-        }
-
-        function getBookRecordId(file) {
-            return `${file.name}::${file.size}::${file.lastModified}`;
-        }
-
-        async function saveBookToLibrary(file, buffer, title) {
-            if (!file || !buffer) return;
-
-            const record = {
-                id: getBookRecordId(file),
-                title: title || file.name.replace(/\.epub$/i, ''),
-                name: file.name,
-                size: file.size,
-                type: file.type || 'application/epub+zip',
-                lastModified: file.lastModified || Date.now(),
-                addedAt: Date.now(),
-                lastOpenedAt: Date.now(),
-                buffer
-            };
-
-            await withBookStore('readwrite', store => store.put(record));
-            currentBookRecordId = record.id;
-        }
-
-        async function touchLibraryBook(id) {
-            const record = await getLibraryBook(id);
-            if (!record) return;
-
-            record.lastOpenedAt = Date.now();
-            await withBookStore('readwrite', store => store.put(record));
-        }
-
-        async function getLibraryBooks() {
-            const result = await withBookStore('readonly', store => idbRequest(store.getAll()));
-            const books = Array.isArray(result) ? result : [];
-            return books.sort((a, b) => (b.lastOpenedAt || b.addedAt || 0) - (a.lastOpenedAt || a.addedAt || 0));
-        }
-
-        async function getLibraryBook(id) {
-            return withBookStore('readonly', store => idbRequest(store.get(id)));
-        }
-
-        async function deleteLibraryBook(id) {
-            await withBookStore('readwrite', store => store.delete(id));
-        }
-
-        function formatBookSize(bytes) {
-            if (!Number.isFinite(bytes)) return 'Unknown size';
-            if (bytes < 1048576) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-            return `${(bytes / 1048576).toFixed(1)} MB`;
-        }
-
-        async function openLibraryPanel() {
-            hideCover();
-            hideRitualPanel();
-            searchPanel.classList.add('hidden');
-            chapterPanel.classList.add('hidden');
-            libraryPanel.classList.remove('hidden');
-            revealUi(0);
-            await updateStorageStatus();
-            await renderLibrary();
-        }
-
-        async function renderLibrary() {
-            try {
-                const books = await getLibraryBooks();
-
-                if (!books.length) {
-                    libraryResults.innerHTML = '<div class="search-status">No stored dataslates found. Load an EPUB through the lower intake to add it to the reliquary.</div>';
-                    return;
-                }
-
-                libraryResults.innerHTML = books.map(bookRecord => {
-                    const active = bookRecord.id === currentBookRecordId ? ' // ACTIVE' : '';
-                    const added = bookRecord.addedAt ? new Date(bookRecord.addedAt).toLocaleDateString() : 'Unknown date';
-
-                    return `
-                        <article class="library-card">
-                            <div class="library-card-title">${escapeHtml(bookRecord.title || bookRecord.name)}${active}</div>
-                            <div class="library-meta">${escapeHtml(bookRecord.name)} // ${formatBookSize(bookRecord.size)} // Added ${escapeHtml(added)}</div>
-                            <div class="library-card-actions">
-                                <button class="search-jump" type="button" data-library-open="${escapeHtml(bookRecord.id)}">Open Dataslate</button>
-                                <button class="search-jump library-delete" type="button" data-library-delete="${escapeHtml(bookRecord.id)}">Purge</button>
-                            </div>
-                        </article>
-                    `;
-                }).join('');
-            } catch (error) {
-                console.error(error);
-                libraryResults.innerHTML = '<div class="search-status">Library scan failed. Browser storage may be sealed or unavailable.</div>';
-            }
-        }
-
-        async function openStoredBook(id) {
-            try {
-                const record = await getLibraryBook(id);
-                if (!record || !record.buffer) {
-                    showToast('Stored dataslate missing or corrupted.');
-                    await renderLibrary();
-                    return;
-                }
-
-                await loadEpub(record, { buffer: record.buffer, store: false, fromLibrary: true });
-                await touchLibraryBook(id);
-                currentBookRecordId = id;
-                hidePanels();
-                showToast('Reliquary Dataslate Opened');
-            } catch (error) {
-                console.error(error);
-                showToast('Library open failed.');
-            }
-        }
-
-        async function purgeStoredBook(id) {
-            try {
-                await deleteLibraryBook(id);
-                if (id === currentBookRecordId) currentBookRecordId = null;
-                await renderLibrary();
-                showToast('Dataslate purged from local reliquary.');
-            } catch (error) {
-                console.error(error);
-                showToast('Purge failed.');
-            }
-        }
-
-        function flattenToc(items, depth = 0, out = []) {
-            if (!Array.isArray(items)) return out;
-
-            for (const item of items) {
-                if (!item) continue;
-                if (item.href) {
-                    out.push({
-                        href: item.href,
-                        title: item.label || item.title || item.href,
-                        depth
-                    });
-                }
-
-                const children = item.subitems || item.children || [];
-                if (children.length) flattenToc(children, depth + 1, out);
-            }
-
-            return out;
-        }
-
-        async function openChapterPanel() {
-            hideCover();
-
-            if (!book) {
-                showToast('No codex loaded. Chapter scan denied.');
-                return;
-            }
-
-            hideRitualPanel();
-            searchPanel.classList.add('hidden');
-            libraryPanel.classList.add('hidden');
-            chapterPanel.classList.remove('hidden');
-            revealUi(0);
-
-            await scanChapters();
-        }
-
-        async function scanChapters() {
-            const nonce = ++activeChapterNonce;
-            chapterResults.innerHTML = '<div class="search-status">Scanning chapter signatures...</div>';
-
-            try {
-                let chapters = flattenToc(book.navigation && book.navigation.toc ? book.navigation.toc : []);
-
-                if (chapters.length) {
-                    renderChapters(chapters, 'TOC chapter signatures acquired.');
-                    return;
-                }
-
-                const spineItems = getSpineItems();
-                const fallback = [];
-
-                for (let i = 0; i < spineItems.length; i += 1) {
-                    if (nonce !== activeChapterNonce) return;
-
-                    const section = spineItems[i];
-
-                    try {
-                        if (typeof section.load === 'function') await section.load(book.load.bind(book));
-                        const doc = section.document;
-                        const heading = doc ? doc.querySelector('h1, h2, h3, [role="heading"], title') : null;
-                        const title = heading
-                            ? (heading.innerText || heading.textContent || '').trim()
-                            : tocTitleForHref(section.href, i);
-
-                        fallback.push({
-                            href: section.href,
-                            title: title || tocTitleForHref(section.href, i),
-                            depth: 0
-                        });
-                    } catch (error) {
-                        fallback.push({
-                            href: section.href,
-                            title: tocTitleForHref(section.href, i),
-                            depth: 0
-                        });
-                    } finally {
-                        try {
-                            if (typeof section.unload === 'function') section.unload();
-                        } catch (error) {
-                            // The machine spirit may retain a scrap.
-                        }
-                    }
-
-                    if (i % 6 === 5) {
-                        chapterResults.innerHTML = `<div class="search-status">Scanning fallback headings... ${i + 1}/${spineItems.length}</div>`;
-                        await new Promise(resolve => setTimeout(resolve, 0));
-                    }
-                }
-
-                renderChapters(fallback, 'Fallback spine scan complete.');
-            } catch (error) {
-                console.error(error);
-                chapterResults.innerHTML = '<div class="search-status">Chapter scan failed. TOC structure may be heretical.</div>';
-            }
-        }
-
-        function renderChapters(chapters, status) {
-            if (!chapters.length) {
-                chapterResults.innerHTML = '<div class="search-status">No chapter signatures found.</div>';
-                return;
-            }
-
-            chapterResults.innerHTML = `
-                <div class="search-status">${escapeHtml(status)} ${chapters.length} vectors found.</div>
-                ${chapters.map((chapter, index) => `
-                    <article class="chapter-card" style="margin-left:${Math.min(18, chapter.depth * 8)}px">
-                        <div class="chapter-card-title">${String(index + 1).padStart(2, '0')} // ${escapeHtml(chapter.title)}</div>
-                        <button class="search-jump" type="button" data-chapter-href="${escapeHtml(chapter.href)}">Jump To Chapter</button>
-                    </article>
-                `).join('')}
-            `;
-        }
-
-        async function jumpToChapter(href) {
-            if (!rendition || !href) return;
-
-            const priorCfi = currentCfi();
-            if (priorCfi) {
-                returnCfi = priorCfi;
-                returnButton.disabled = false;
-            }
-
-            hidePanels();
-            pulseTurn();
-
-            try {
-                await rendition.display(href);
-                showToast('Chapter vector reached. Return vector armed.');
-                revealUi(1800);
-            } catch (error) {
-                showToast('Chapter jump failed.');
-            }
+            showToast('Bookmark Sigil Burned Into Local Memory');
         }
 
         async function goNext() {
-            if (!rendition) {
-                revealUi(2000);
-                return;
-            }
-
-            hidePanels();
+            if (!rendition) return;
             pulseTurn();
-
             try {
                 await rendition.next();
-                enterReadingFocus();
             } catch (error) {
                 showToast('End of codex boundary reached');
             }
         }
 
         async function goPrev() {
-            if (!rendition) {
-                revealUi(2000);
-                return;
-            }
-
-            hidePanels();
+            if (!rendition) return;
             pulseTurn();
-
             try {
                 await rendition.prev();
-                enterReadingFocus();
             } catch (error) {
                 showToast('Beginning of codex boundary reached');
-            }
-        }
-
-        function getSpineItems() {
-            if (!book || !book.spine) return [];
-            if (Array.isArray(book.spine.spineItems)) return book.spine.spineItems;
-            if (Array.isArray(book.spine.items)) return book.spine.items;
-
-            const items = [];
-            if (typeof book.spine.each === 'function') {
-                book.spine.each(item => items.push(item));
-            }
-            return items;
-        }
-
-        function tocTitleForHref(href, fallbackIndex) {
-            const cleanHref = (href || '').split('#')[0];
-
-            function walk(items) {
-                for (const item of items || []) {
-                    const itemHref = (item.href || '').split('#')[0];
-                    if (itemHref === cleanHref || itemHref.endsWith(cleanHref) || cleanHref.endsWith(itemHref)) {
-                        return item.label || item.title || item.text || null;
-                    }
-
-                    const child = walk(item.subitems || item.children || []);
-                    if (child) return child;
-                }
-
-                return null;
-            }
-
-            const title = book && book.navigation ? walk(book.navigation.toc || []) : null;
-            return title || `Canto ${String(fallbackIndex + 1).padStart(2, '0')}`;
-        }
-
-        function cleanSearchExcerpt(text, index, queryLength) {
-            const start = Math.max(0, index - 80);
-            const end = Math.min(text.length, index + queryLength + 120);
-            const excerpt = text.slice(start, end).replace(/\s+/g, ' ').trim();
-            return `${start > 0 ? '…' : ''}${excerpt}${end < text.length ? '…' : ''}`;
-        }
-
-        function setSearchStatus(message) {
-            searchResults.innerHTML = `<div class="search-status">${message}</div>`;
-        }
-
-        function openSearchPanel() {
-            hideCover();
-
-            if (!book) {
-                showToast('No codex loaded. Query rite denied.');
-                return;
-            }
-
-            ritualPanel.classList.add('hidden');
-            chapterPanel.classList.add('hidden');
-            libraryPanel.classList.add('hidden');
-            searchPanel.classList.remove('hidden');
-            revealUi(0);
-            searchInput.focus();
-            searchInput.select();
-        }
-
-        async function runSearch(query) {
-            query = query.trim();
-
-            if (!query) {
-                setSearchStatus('Enter a term. Results jump by canto and preserve a return vector.');
-                return;
-            }
-
-            if (!book) {
-                setSearchStatus('No codex bound. Insert dataslate first.');
-                return;
-            }
-
-            const nonce = ++activeSearchNonce;
-            const priorCfi = currentCfi();
-            if (priorCfi) {
-                returnCfi = priorCfi;
-                returnButton.disabled = false;
-            }
-
-            const lowerQuery = query.toLowerCase();
-            const spineItems = getSpineItems();
-
-            setSearchStatus(`Auspex scanning ${spineItems.length || '?'} canto records...`);
-
-            const results = [];
-
-            for (let i = 0; i < spineItems.length; i += 1) {
-                if (nonce !== activeSearchNonce) return;
-
-                const section = spineItems[i];
-
-                try {
-                    if (typeof section.load === 'function') {
-                        await section.load(book.load.bind(book));
-                    }
-
-                    const body = section.document && section.document.body;
-                    const text = body ? (body.innerText || body.textContent || '') : '';
-
-                    if (text) {
-                        const lowerText = text.toLowerCase();
-                        let from = 0;
-                        let localMatches = 0;
-
-                        while (localMatches < 2) {
-                            const found = lowerText.indexOf(lowerQuery, from);
-                            if (found === -1) break;
-
-                            results.push({
-                                href: section.href,
-                                title: tocTitleForHref(section.href, i),
-                                excerpt: cleanSearchExcerpt(text, found, query.length)
-                            });
-
-                            localMatches += 1;
-                            from = found + lowerQuery.length;
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Search skipped spine section:', error);
-                } finally {
-                    try {
-                        if (typeof section.unload === 'function') section.unload();
-                    } catch (error) {
-                        // The machine spirit may keep its scrap memory.
-                    }
-                }
-
-                if (i % 5 === 4) {
-                    setSearchStatus(`Auspex scanning... ${i + 1}/${spineItems.length} records inspected.`);
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
-
-                if (results.length >= 30) break;
-            }
-
-            if (nonce !== activeSearchNonce) return;
-
-            if (!results.length) {
-                setSearchStatus(`No sanctioned matches for “${escapeHtml(query)}”.`);
-                return;
-            }
-
-            renderSearchResults(results, query);
-        }
-
-        function escapeHtml(value) {
-            return String(value)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function renderSearchResults(results, query) {
-            const cards = results.map((result, index) => {
-                return `
-                    <article class="search-card">
-                        <div class="search-card-title">${escapeHtml(result.title)} // Match ${String(index + 1).padStart(2, '0')}</div>
-                        <p class="search-excerpt">${escapeHtml(result.excerpt)}</p>
-                        <button class="search-jump" type="button" data-search-href="${escapeHtml(result.href)}">Jump To Canto</button>
-                    </article>
-                `;
-            }).join('');
-
-            searchResults.innerHTML = `
-                <div class="search-status">${results.length} transmission matches for “${escapeHtml(query)}”. Return vector preserved.</div>
-                ${cards}
-            `;
-        }
-
-        async function jumpToSearchResult(href) {
-            if (!rendition || !href) return;
-
-            const priorCfi = currentCfi();
-            if (priorCfi) {
-                returnCfi = priorCfi;
-                returnButton.disabled = false;
-            }
-
-            hidePanels();
-            pulseTurn();
-
-            try {
-                await rendition.display(href);
-                showToast('Search vector reached. Return vector armed.');
-                revealUi(1800);
-            } catch (error) {
-                showToast('Jump failed. Canto vector unstable.');
-            }
-        }
-
-        async function returnToPriorVector() {
-            if (!rendition || !returnCfi) {
-                showToast('No return vector stored.');
-                return;
-            }
-
-            hidePanels();
-            pulseTurn();
-
-            try {
-                await rendition.display(returnCfi);
-                showToast('Prior Reading Vector Restored');
-                returnCfi = null;
-                returnButton.disabled = true;
-                revealUi(1800);
-            } catch (error) {
-                showToast('Return vector failed.');
             }
         }
 
         function wireGestureLayer() {
             gestureLayer.addEventListener('pointerdown', (event) => {
                 isPointerDown = true;
-                longPressTriggered = false;
                 startX = event.clientX;
                 startY = event.clientY;
                 startTime = Date.now();
-
-                window.clearTimeout(longPressTimer);
-                longPressTimer = window.setTimeout(() => {
-                    if (!isPointerDown) return;
-                    longPressTriggered = true;
-                    showRitualPanel();
-                }, 560);
-
                 gestureLayer.setPointerCapture(event.pointerId);
             });
 
-            gestureLayer.addEventListener('pointermove', (event) => {
-                if (!isPointerDown) return;
-
-                const dx = event.clientX - startX;
-                const dy = event.clientY - startY;
-
-                if (Math.hypot(dx, dy) > 18) {
-                    window.clearTimeout(longPressTimer);
-                }
-            });
-
             gestureLayer.addEventListener('pointerup', (event) => {
-                window.clearTimeout(longPressTimer);
-
                 if (!isPointerDown) return;
                 isPointerDown = false;
-
-                if (longPressTriggered) return;
 
                 const dx = event.clientX - startX;
                 const dy = event.clientY - startY;
                 const elapsed = Date.now() - startTime;
                 const absX = Math.abs(dx);
                 const absY = Math.abs(dy);
-                const rect = gestureLayer.getBoundingClientRect();
-                const localX = event.clientX - rect.left;
-                const centerBand = localX > rect.width * 0.36 && localX < rect.width * 0.64;
 
                 if (dy > 72 && absY > absX * 1.35) {
                     saveBookmark();
@@ -2396,17 +1695,13 @@
                 }
 
                 if (absX < 16 && absY < 16 && elapsed < 360) {
-                    if (centerBand) {
-                        toggleRitualPanel();
-                        return;
-                    }
-
+                    const rect = gestureLayer.getBoundingClientRect();
+                    const localX = event.clientX - rect.left;
                     localX > rect.width / 2 ? goNext() : goPrev();
                 }
             });
 
             gestureLayer.addEventListener('pointercancel', () => {
-                window.clearTimeout(longPressTimer);
                 isPointerDown = false;
             });
         }
@@ -2425,16 +1720,26 @@
             }
 
             const buffer = options.buffer || await file.arrayBuffer();
-            currentBookKey = getBookKey(file);
-            currentBookRecordId = options.fromLibrary ? getBookRecordId(file) : null;
+            currentBookKey = options.bookKey || getBookKey(file);
             locationsReady = false;
-            returnCfi = null;
-            returnButton.disabled = true;
+            totalWordCount = 0;
+            totalRoughPages = 0;
+            roughPageStatus.textContent = '-- / --';
 
-            hidePanels();
+            try {
+                totalWordCount = await estimateWordCountFromEpubBuffer(buffer);
+                totalRoughPages = totalWordCount ? Math.max(1, Math.ceil(totalWordCount / WORDS_PER_ROUGH_PAGE)) : 0;
+                roughPageStatus.textContent = totalRoughPages
+                    ? `-- / ${formatInteger(totalRoughPages)}`
+                    : '0 / 0';
+            } catch (error) {
+                console.warn('Rough page estimate failed:', error);
+                totalWordCount = 0;
+                totalRoughPages = 0;
+                roughPageStatus.textContent = '-- / --';
+            }
+
             hideCover();
-            cleanupCoverUrl();
-            bookmarkSeal.classList.add('hidden');
 
             if (rendition) {
                 rendition.destroy();
@@ -2461,18 +1766,18 @@
                 allowScriptedContent: false
             });
 
-            rendition.themes.register('auspexAmber', makeReaderTheme());
+            rendition.themes.register('auspexAmber', readerTheme);
             rendition.themes.select('auspexAmber');
-            rendition.themes.fontSize(`${fontPercent}%`);
-            rendition.themes.override('padding', currentProtocol().padding);
+            rendition.themes.fontSize('112%');
+            rendition.themes.override('padding', 'clamp(22px, 7vw, 40px) clamp(20px, 7vw, 38px)');
 
             rendition.on('relocated', updateLocation);
             rendition.on('rendered', () => {
                 linkStatus.textContent = 'Link: Established // Sanctified';
-                lumenStatus.textContent = currentProtocol().status;
+                lumenStatus.textContent = 'Lumen: 88%';
             });
 
-            let title = file.title || file.name.replace(/\.epub$/i, '');
+            let title = options.storedTitle || file.name.replace(/\.epub$/i, '');
             try {
                 const metadata = await book.loaded.metadata;
                 if (metadata && metadata.title) title = metadata.title;
@@ -2480,25 +1785,31 @@
                 // Metadata is ornamental. The codex still reads.
             }
 
-            if (options.store !== false && file instanceof File) {
-                try {
-                    await requestPersistentStorage();
-                    await saveBookToLibrary(file, buffer.slice(0), title);
-                } catch (error) {
-                    console.warn('Library store failed:', error);
-                    showToast('Codex mounted, but reliquary storage failed.');
-                }
+            currentBookTitle = title;
+
+            if (!options.skipLibrarySave) {
+                await saveBookToLibrary(file, buffer, title);
+            } else {
+                localStorage.setItem(LIBRARY_LAST_KEY, currentBookKey);
             }
 
-            const savedBookmark = localStorage.getItem(`${currentBookKey}::bookmark`);
-            const lastLocation = localStorage.getItem(`${currentBookKey}::last`);
-            const target = savedBookmark || lastLocation || undefined;
+            const storedRecord = await getBookRecord(currentBookKey).catch(() => null);
+            const savedBookmark = localStorage.getItem(`${currentBookKey}::bookmark`) || (storedRecord && storedRecord.bookmarkCfi);
+            const lastLocation = localStorage.getItem(`${currentBookKey}::last`) || (storedRecord && storedRecord.lastCfi);
+            const target = lastLocation || savedBookmark || undefined;
 
             await rendition.display(target);
 
             linkStatus.textContent = 'Link: Established // Sanctified';
-            slotText.textContent = options.fromLibrary ? 'Reliquary Dataslate Mounted' : 'Dataslate Mounted';
-            showToast(savedBookmark ? `Bookmark Restored: ${title}` : `Codex Mounted: ${title}`);
+            slotText.textContent = 'Dataslate Mounted';
+            showToast(options.fromLibrary
+                ? `Codex Restored: ${title}`
+                : savedBookmark
+                    ? `Codex Mounted // Bookmark Available: ${title}`
+                    : totalRoughPages
+                        ? `Codex Mounted: ${title} // ${formatInteger(totalRoughPages)} pages @ 250w`
+                        : `Codex Mounted: ${title}`
+            );
 
             await showCoverFromBuffer(buffer, title);
 
@@ -2508,11 +1819,10 @@
             }).catch(() => {
                 locationsReady = false;
                 pageStatus.textContent = 'LOC MODE';
-                updateLocation(rendition.currentLocation());
+                updateRoughPageStatus(null);
             });
-
-            revealUi(3600);
         }
+
         input.addEventListener('change', async (event) => {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
@@ -2530,127 +1840,64 @@
                 hideCover();
                 placeholder.classList.remove('hidden');
                 linkStatus.textContent = 'Link: Failed // Dataslate Corrupt';
+                roughPageStatus.textContent = '-- / --';
                 pageStatus.textContent = 'LOAD ERROR';
                 showToast('Codex failed to mount. Try another EPUB.');
             }
         });
 
-        document.querySelectorAll('.protocol-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                applyProtocol(chip.dataset.protocolTarget);
-                revealUi(3200);
-            });
-        });
-
         libraryButton.addEventListener('click', openLibraryPanel);
-        chapterButton.addEventListener('click', openChapterPanel);
-        sentenceButton.addEventListener('click', toggleSentenceGuard);
-        searchButton.addEventListener('click', openSearchPanel);
-        fontDownButton.addEventListener('click', () => adjustFont(-4));
-        fontUpButton.addEventListener('click', () => adjustFont(4));
-        bookmarkButton.addEventListener('click', saveBookmark);
-        returnButton.addEventListener('click', returnToPriorVector);
-        closeRitesButton.addEventListener('click', () => {
-            hidePanels();
-            revealUi(1200);
+        libraryClose.addEventListener('click', closeLibraryPanel);
+
+        libraryPanel.addEventListener('click', (event) => {
+            if (event.target === libraryPanel) closeLibraryPanel();
         });
 
-        searchForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-            runSearch(searchInput.value);
-        });
-
-        searchResults.addEventListener('click', (event) => {
-            const button = event.target.closest('[data-search-href]');
+        libraryList.addEventListener('click', async (event) => {
+            const button = event.target.closest('button[data-action]');
             if (!button) return;
-            jumpToSearchResult(button.dataset.searchHref);
-        });
 
-        chapterResults.addEventListener('click', (event) => {
-            const button = event.target.closest('[data-chapter-href]');
-            if (!button) return;
-            jumpToChapter(button.dataset.chapterHref);
-        });
+            const item = button.closest('.library-item');
+            const bookId = item ? item.dataset.bookId : null;
+            if (!bookId) return;
 
-        libraryResults.addEventListener('click', async (event) => {
-            const openButton = event.target.closest('[data-library-open]');
-            const deleteButton = event.target.closest('[data-library-delete]');
-
-            if (openButton) {
-                await openStoredBook(openButton.dataset.libraryOpen);
+            if (button.dataset.action === 'delete') {
+                await deleteBookRecord(bookId);
+                if (localStorage.getItem(LIBRARY_LAST_KEY) === bookId) {
+                    localStorage.removeItem(LIBRARY_LAST_KEY);
+                }
+                await renderLibraryList();
+                showToast('Codex purged from local vault');
                 return;
             }
 
-            if (deleteButton) {
-                await purgeStoredBook(deleteButton.dataset.libraryDelete);
+            const record = await getBookRecord(bookId);
+            await loadStoredBook(record);
+        });
+
+        bookmarkButton.addEventListener('click', () => {
+            if (bookmarkHoldTriggered) {
+                bookmarkHoldTriggered = false;
+                return;
             }
+
+            saveBookmark();
         });
 
-        persistButton.addEventListener('click', async () => {
-            const granted = await requestPersistentStorage();
-            showToast(granted ? 'Persistent reliquary access granted.' : 'Persistence request denied or unavailable.');
-            await updateStorageStatus();
+        bookmarkButton.addEventListener('pointerdown', () => {
+            bookmarkHoldTriggered = false;
+            clearTimeout(bookmarkHoldTimer);
+            bookmarkHoldTimer = setTimeout(() => {
+                bookmarkHoldTriggered = true;
+                jumpToBookmark();
+            }, 720);
         });
 
-        refreshLibraryButton.addEventListener('click', renderLibrary);
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(eventName => {
+            bookmarkButton.addEventListener(eventName, () => clearTimeout(bookmarkHoldTimer));
+        });
 
         window.addEventListener('keydown', (event) => {
-            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-            const typing = activeTag === 'input' || activeTag === 'textarea';
-
-            if (typing && event.key !== 'Escape') return;
-
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                hidePanels();
-                revealUi(1200);
-                return;
-            }
-
-            if (event.key === '/') {
-                event.preventDefault();
-                openSearchPanel();
-                return;
-            }
-
-            if (event.key.toLowerCase() === 'l') {
-                event.preventDefault();
-                openLibraryPanel();
-                return;
-            }
-
-            if (event.key.toLowerCase() === 'c') {
-                event.preventDefault();
-                openChapterPanel();
-                return;
-            }
-
-            if (event.key.toLowerCase() === 'g') {
-                event.preventDefault();
-                toggleSentenceGuard();
-                return;
-            }
-
-            if (event.key.toLowerCase() === 'p') {
-                event.preventDefault();
-                const order = ['full', 'sanctified', 'archivist'];
-                const next = order[(order.indexOf(currentProtocolName) + 1) % order.length];
-                applyProtocol(next);
-                return;
-            }
-
-            if (event.key === '+' || event.key === '=') {
-                event.preventDefault();
-                adjustFont(4);
-                return;
-            }
-
-            if (event.key === '-' || event.key === '_') {
-                event.preventDefault();
-                adjustFont(-4);
-                return;
-            }
-
             if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
                 event.preventDefault();
                 goNext();
@@ -2661,9 +1908,19 @@
                 goPrev();
             }
 
-            if (event.key.toLowerCase() === 'b') {
+            if (event.key.toLowerCase() === 'b' && !event.shiftKey) {
                 event.preventDefault();
                 saveBookmark();
+            }
+
+            if (event.key.toLowerCase() === 'b' && event.shiftKey) {
+                event.preventDefault();
+                jumpToBookmark();
+            }
+
+            if (event.key.toLowerCase() === 'l') {
+                event.preventDefault();
+                openLibraryPanel();
             }
         });
 
@@ -2679,10 +1936,7 @@
         });
 
         function occasionalAmbientFlicker() {
-            if (!currentProtocol().ambient) return;
             if (Math.random() > 0.35) return;
-            if (!ritualPanel.classList.contains('hidden') || !searchPanel.classList.contains('hidden')) return;
-
             screen.classList.remove('ambient-flicker');
             void screen.offsetWidth;
             screen.classList.add('ambient-flicker');
@@ -2691,11 +1945,8 @@
 
         setInterval(occasionalAmbientFlicker, 9500);
 
-        applyProtocol(currentProtocolName, { silent: true, keepFont: true });
-        updateSentenceGuardButton();
-        updateStorageStatus();
-        revealUi(3200);
         wireGestureLayer();
+        resumeLastStoredBook();
     </script>
 </body>
 </html>
